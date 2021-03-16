@@ -178,7 +178,7 @@ CHANGES 7/06/2019
 CHANGES 7/01/2019
     Now supports two GamePads instead of just one. Use start-A and start-B to select gamepad1 and gamepad2, as
     you would in the FTC SDK. Two op modes for Mecanum Bot contributed by FTC team 16072, including a nice
-    demonstration of field-centric drive using the IMU. These are in the org.firstinspires.ftc.teamcode.ftc16072 package.
+    demonstration of field-centric drive using the IMU. These are in the org.firstinspires.ftc.teamcode.Z.ftc16072 package.
 
 CHANGES 6/25/2019
     Contribution from Alan Smith (alan412): now supports "regular" op modes in addition to linear op modes.
