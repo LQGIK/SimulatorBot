@@ -6,19 +6,22 @@ package org.firstinspires.ftc.teamcode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls;
 import org.firstinspires.ftc.teamcode.Hardware.Mecanum;
 import org.firstinspires.ftc.teamcode.Utilities.Utils;
 
+import static java.lang.StrictMath.cos;
+import static org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit.INCH;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.DOWN;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.Input.*;
-import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.Input.CROSS;
+import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.*;
 import static org.firstinspires.ftc.teamcode.Utilities.Utils.print;
 
 
-@Autonomous(name="AutoDiag", group="Autonomous Linear Opmode")
-public class AutoDiag extends LinearOpMode {
+@Autonomous(name="AlphaAuto", group="Autonomous Linear Opmode")
+public class Alpha extends LinearOpMode {
 
     private Mecanum robot;
     private ButtonControls BC;
@@ -46,7 +49,15 @@ public class AutoDiag extends LinearOpMode {
 
         initialize();
         waitForStart();
-        robot.turn(0, 0.01);
 
+        // 1) Set feederCount to 0
+        robot.feederCount = 0;
+
+        // 2) Turn to first powershot
+        robot.turn(83, 0.5, 0.1);
+        sleep(500);
+        robot.turn(88, 0.5, 0.01);
+        sleep(500);
+        robot.turn(92, 0.5, 0.01);
     }
 }

@@ -19,8 +19,8 @@ public class Joystick {
 
     public void update(){
         rawPoint = stickCheck.check();
-        rawX = rawPoint.getX();
-        rawY = rawPoint.getY();
+        rawX = rawPoint.x;
+        rawY = rawPoint.y;
     }
 
     public double getX() {

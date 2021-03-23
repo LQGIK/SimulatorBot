@@ -2,20 +2,31 @@ package org.firstinspires.ftc.teamcode.TeleOp;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls;
 import org.firstinspires.ftc.teamcode.Hardware.Controls.JoystickControls;
 import org.firstinspires.ftc.teamcode.Hardware.Mecanum;
+import org.firstinspires.ftc.teamcode.Hardware.Sensors.DistanceOdom;
 import org.firstinspires.ftc.teamcode.Utilities.PID.RingBuffer;
+import org.firstinspires.ftc.teamcode.Utilities.Point;
 import org.firstinspires.ftc.teamcode.Utilities.Utils;
 
+import static java.lang.StrictMath.cos;
+import static java.lang.StrictMath.floor;
+import static org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit.INCH;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.DOWN;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.TAP;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.Input.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.JoystickControls.Input.LEFT;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.JoystickControls.Input.RIGHT;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.JoystickControls.Value.*;
+import static org.firstinspires.ftc.teamcode.Hardware.Sensors.DistanceOdom.RobotSide.*;
+import static org.firstinspires.ftc.teamcode.Hardware.Sensors.DistanceOdom.FieldSide.*;
+
+
 
 @TeleOp(name = "Zeta TeleOp", group="Linear TeleOp")
 public class Zeta extends LinearOpMode {
@@ -54,6 +65,7 @@ public class Zeta extends LinearOpMode {
     private RingBuffer<Double> angle_ring_buffer = new RingBuffer<>(5, 0.0);
     private RingBuffer<Double> time_ring_buffer = new RingBuffer<>(5,  0.0);
 
+    private DistanceSensor dl, db;
 
     public void initialize() {
         Utils.setOpMode(this);
@@ -63,6 +75,10 @@ public class Zeta extends LinearOpMode {
         BC2 = new ButtonControls(gamepad2);
 
         JC1 = new JoystickControls(gamepad1);
+
+        dl = hardwareMap.get(DistanceSensor.class, "left_distance");
+        db = hardwareMap.get(DistanceSensor.class, "back_distance");
+
     }
 
     public void shutdown(){
@@ -138,10 +154,10 @@ public class Zeta extends LinearOpMode {
             else if (BC1.get(RB2, DOWN)) velocity = Range.clip((1 - gamepad1.right_trigger), 0.2, 1);
 
             //              DPAD AUTO TURN              //
-            if (BC1.get(DPAD_UP, DOWN)) locked_direction            = Mecanum.closestAngle(0, robot.imu.getAngle());
-            else if (BC1.get(DPAD_R, DOWN)) locked_direction        = Mecanum.closestAngle(-90, robot.imu.getAngle());
-            else if (BC1.get(DPAD_L, DOWN)) locked_direction        = Mecanum.closestAngle(90, robot.imu.getAngle());
-            else if (BC1.get(DPAD_DN, DOWN)) locked_direction       = Mecanum.closestAngle(180, robot.imu.getAngle());
+            if (BC1.get(DPAD_UP, DOWN)) locked_direction            = Mecanum.findClosestAngle(0, robot.imu.getAngle());
+            else if (BC1.get(DPAD_R, DOWN)) locked_direction        = Mecanum.findClosestAngle(-90, robot.imu.getAngle());
+            else if (BC1.get(DPAD_L, DOWN)) locked_direction        = Mecanum.findClosestAngle(90, robot.imu.getAngle());
+            else if (BC1.get(DPAD_DN, DOWN)) locked_direction       = Mecanum.findClosestAngle(180, robot.imu.getAngle());
 
 
             /*
@@ -174,7 +190,16 @@ public class Zeta extends LinearOpMode {
              ----------- L O G G I N G -----------
 
                                                 */
+            robot.odom.update(robot.imu.getAngle());
+            Point coords = robot.odom.getCoords();
+            Utils.telemetry.addData("X", coords.x);
+            Utils.telemetry.addData("Y", coords.y);
+            Utils.telemetry.addData("DB", db.getDistance(INCH));
+            Utils.telemetry.addData("DL", dl.getDistance(INCH));
 
+
+
+            Utils.telemetry.update();
 
             /*
              ----------- S H U T D O W N -----------

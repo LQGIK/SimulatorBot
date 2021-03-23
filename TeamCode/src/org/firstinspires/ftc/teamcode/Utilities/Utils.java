@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.Utilities;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 public class Utils {
@@ -74,6 +75,7 @@ public class Utils {
         double p2 = .8;
         double p3 = normFactor * (Math.sqrt(acceleration * (distance - position)));
         double power = Math.min(Math.min(p1, p2), p3) + 0.1;
+        power = Range.clip(power, 0.1, 1);
 
         return power;
     }

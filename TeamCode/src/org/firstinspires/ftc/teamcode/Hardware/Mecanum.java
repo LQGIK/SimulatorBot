@@ -5,17 +5,23 @@ package org.firstinspires.ftc.teamcode.Hardware;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
+import org.firstinspires.ftc.teamcode.Hardware.Sensors.DistanceOdom;
 import org.firstinspires.ftc.teamcode.Hardware.Sensors.IMU;
 import org.firstinspires.ftc.teamcode.Utilities.DashConstants.Dash_Movement;
+import org.firstinspires.ftc.teamcode.Utilities.MathUtils;
 import org.firstinspires.ftc.teamcode.Utilities.PID.PID;
 import org.firstinspires.ftc.teamcode.Utilities.SyncTask;
 import org.firstinspires.ftc.teamcode.Utilities.Utils;
 
 import static java.lang.Math.floorMod;
+import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.*;
+import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.END;
 import static org.firstinspires.ftc.teamcode.Utilities.MathUtils.map;
 import static org.firstinspires.ftc.teamcode.Utilities.Utils.convertInches2Ticks;
+import static org.firstinspires.ftc.teamcode.Utilities.Utils.hardwareMap;
 
 
 public class Mecanum implements Robot {
@@ -23,6 +29,9 @@ public class Mecanum implements Robot {
     // HARDWARE
     private DcMotor fr, fl, br, bl;
     public IMU imu;
+
+    public DistanceOdom odom;
+
 
     // SYSTEMS
     public PID rotationPID = new PID(Dash_Movement.p, Dash_Movement.i, Dash_Movement.d, 100, true);
@@ -39,16 +48,18 @@ public class Mecanum implements Robot {
     public void initRobot() {
         //Utils.telemetry.addData("Status", "Initialized");
 
-
         // Init Motors
         fr = Utils.hardwareMap.get(DcMotor.class, "front_right_motor");
         fl = Utils.hardwareMap.get(DcMotor.class, "front_left_motor");
         br = Utils.hardwareMap.get(DcMotor.class, "back_right_motor");
         bl = Utils.hardwareMap.get(DcMotor.class, "back_left_motor");
         resetMotors();
-        imu = new IMU("imu");
 
+        imu = new IMU("imu");
         initAngle = imu.getAngle();
+
+
+        odom = new DistanceOdom("front_distance", "right_distance");
     }
 
     /**
@@ -70,8 +81,6 @@ public class Mecanum implements Robot {
         bl.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         br.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
     }
-
-
 
     /**
      * @return average encoder position
@@ -103,6 +112,12 @@ public class Mecanum implements Robot {
         bl.setPower((drive - strafe + turn) * velocity);
     }
 
+    public double closestRelativeAngle(double targetAngle){
+        double simpleTargetDelta = floorMod(Math.round(((360 - targetAngle) + imu.getAngle()) * 1e6), Math.round(360.000 * 1e6)) / 1e6;
+        double alternateTargetDelta = -1 * (360 - simpleTargetDelta);
+        return StrictMath.abs(simpleTargetDelta) >= StrictMath.abs(alternateTargetDelta) ? 0 - simpleTargetDelta : 0 - alternateTargetDelta;
+    }
+
 
     /**
      * @param angle
@@ -114,6 +129,8 @@ public class Mecanum implements Robot {
         System.out.println(angle + " " + inches);
         double ticks = convertInches2Ticks(inches);
 
+        angle = closestRelativeAngle(angle);
+        directionFacingAngle = findClosestAngle(directionFacingAngle, imu.getAngle());
 
         resetMotors();                                              // Reset Motor Encoder
 
@@ -158,97 +175,151 @@ public class Mecanum implements Robot {
             Utils.telemetry.update();
         }
         setAllPower(0);
-
-        time.reset();
-        while (time.milliseconds() < 200);
-
     }
 
     //@RequiresApi(api = Build.VERSION_CODES.N)
-    public static double closestAngle(double targetAngle, double currentAngle){
+    public static double findClosestAngle(double targetAngle, double currentAngle){
         double simpleTargetDelta = floorMod(Math.round(((360 - targetAngle) + currentAngle) * 1e6), Math.round(360.000 * 1e6)) / 1e6;
         double alternateTargetDelta = -1 * (360 - simpleTargetDelta);
         return StrictMath.abs(simpleTargetDelta) <= StrictMath.abs(alternateTargetDelta) ? currentAngle - simpleTargetDelta : currentAngle - alternateTargetDelta;
     }
 
     //@RequiresApi(api = Build.VERSION_CODES.N)
-    public void turn(double target_angle, double MOE) {
+    public void turn(double target_angle, double MOE, double acceleration) {
 
         double startTime = System.currentTimeMillis();
+        double turn_direction, pid_return, power, powerRampPosition;
 
-        double turn, pid_return;
+
+        //            Calc Power Ramping and PID Values           //
         double current_angle = imu.getAngle();
-        double actual_target_angle = closestAngle(target_angle, current_angle);
+        double startAngle = current_angle;
+        double actual_target_angle = findClosestAngle(target_angle, current_angle);
+        double startDeltaAngle = Math.abs(actual_target_angle - current_angle);
         double error = actual_target_angle - current_angle;
 
+
+
         while ((Math.abs(error) > MOE) && Utils.isActive()) {
-            actual_target_angle = closestAngle(target_angle, current_angle);
+
+            //              PID                     //
             error = actual_target_angle - current_angle;
             pid_return = rotationPID.update(error) * -1;
-            turn = Range.clip(pid_return, -1, 1);
+            turn_direction = (pid_return > 0) ? 1 : -1;
 
-            setDrivePower(0, 0, turn, Dash_Movement.velocity);
 
+            //              Power Ramping            //
+            powerRampPosition = MathUtils.map(current_angle, startAngle, actual_target_angle, 0, startDeltaAngle);
+            power = Utils.powerRamp(powerRampPosition, startDeltaAngle, acceleration);
+
+
+            //turn = (turn > 0) ? Range.clip(turn, 0.1, 1) : Range.clip(turn, -1, -0.1);
+
+
+            //        Check timeout             //
+            //double elapsedTime = Math.abs(System.currentTimeMillis() - startTime);
+            //if (elapsedTime > 3000) break;
+
+
+            //        Set Power                 //
+            setDrivePower(0, 0, turn_direction, power);
             current_angle = imu.getAngle();
 
-            // Check timeout
-            double elapsedTime = Math.abs(System.currentTimeMillis() - startTime);
-            if (elapsedTime > 3000) break;
 
 
+            //          Logging                 //
             Utils.telemetry.addData("Error", error);
-            Utils.telemetry.addData("Turn", turn);
-            Utils.telemetry.addData("IMU", current_angle);
-            Utils.telemetry.update();
-        }
-    }
-
-
-    public void turnPowerRamp(double targetAngle, double MOE) {
-
-        ElapsedTime time = new ElapsedTime();
-
-        System.out.println("Turning to " + targetAngle + " degrees");
-        double power;
-        double startAngle = imu.getAngle();
-        double currentAngle = imu.getAngle();
-        double deltaAngle = Math.abs(targetAngle - currentAngle);
-
-        // Retrieve angle and MOE
-        double upperBound = targetAngle + MOE;
-        double lowerBound = targetAngle - MOE;
-        while ((lowerBound >= currentAngle || currentAngle >= upperBound) && Utils.isActive()) {
-
-            // Power Ramping based off a logistic piecewise
-            double currentDeltaAngle = targetAngle - currentAngle;
-            double relativePosition = map(currentAngle, startAngle, targetAngle, 0, deltaAngle);
-            double direction = -Math.signum(currentDeltaAngle);
-            // RelativePosition must be calculated to match domain restrictions of powerRamp
-            // We want to map our currentAngle relative to a range of [0, and distance it needs to travel]
-
-            // Modeling a piece wise of power as a function of distance
-            power = Utils.powerRamp(relativePosition, deltaAngle, 0.05);
-
-            // Handle clockwise (+) and counterclockwise (-) motion
-            setDrivePower(0, 0, direction, power);
-
-            currentAngle = imu.getAngle();
-
-            Utils.telemetry.addData("IMU", imu.getAngle());
-            Utils.telemetry.addData("Direction", direction);
-            Utils.telemetry.addData("Relative Position", relativePosition);
-            Utils.telemetry.addData("Delta Angle", deltaAngle);
+            Utils.telemetry.addData("Turn", turn_direction);
             Utils.telemetry.addData("Power", power);
-
-            Utils.telemetry.addData("Lower", lowerBound);
-            Utils.telemetry.addData("Upper", upperBound);
+            Utils.telemetry.addData("IMU", current_angle);
+            Utils.telemetry.addData("Finished", (Math.abs(error) <= MOE));
             Utils.telemetry.update();
         }
-
-        // Stop power
         setAllPower(0);
-
-        time.reset();
-        while (time.milliseconds() < 100);
     }
+
+
+    public enum PSState {
+        LEFT, CENTER, RIGHT, TURNING_CENTER, TURNING_LEFT, END
+    }
+    public PSState current_ps_state = RIGHT;
+    public ElapsedTime time = new ElapsedTime();
+    public int feederCount = 0;
+
+    public void turnPowerShot(double MOE) {
+
+        double current_angle = imu.getAngle();
+        double turn_direction = 0;
+        double power = 0;
+        double actual_target_angle, error, pid_return;
+
+
+        //          STATE MACHINE           //
+        switch (current_ps_state){
+
+            case RIGHT:
+                if (feederCount < 1) feederCount += 1;
+
+                else current_ps_state = TURNING_CENTER;
+                Utils.telemetry.addData("Status", RIGHT.toString());
+                break;
+
+
+            case TURNING_CENTER:
+                actual_target_angle = findClosestAngle(88, current_angle);
+                error = actual_target_angle - current_angle;
+                turn_direction = (rotationPID.update(error) * -1 > 0) ? 1 : -1;
+                power = 0.1;
+
+                //    DRIVE IF WE HAVEN'T REACHED TARGET     //
+                if (Math.abs(error) > MOE) power = 0.2;
+                else {
+                    current_ps_state = CENTER;
+                    feederCount = 0;
+                }
+
+                Utils.telemetry.addData("Status", TURNING_CENTER.toString());
+                Utils.telemetry.addData("Finished Turning CENTER", (Math.abs(error) <= MOE));
+                break;
+
+
+            case CENTER:
+                power = 0;
+                if (feederCount < 1) feederCount += 1;
+                else current_ps_state = TURNING_LEFT;
+                Utils.telemetry.addData("Status", CENTER.toString());
+                break;
+
+
+            case TURNING_LEFT:
+
+                actual_target_angle = findClosestAngle(92, current_angle);
+                error = actual_target_angle - current_angle;
+                pid_return = rotationPID.update(error) * -1;
+                turn_direction = (pid_return > 0) ? 1 : -1;
+                power = 0.1;
+
+                //    DRIVE IF WE HAVEN'T REACHED TARGET     //
+                if (Math.abs(error) > MOE) power = 0.2;
+                else {
+                    feederCount = 0;
+                    current_ps_state = CENTER;
+                }
+
+                Utils.telemetry.addData("Status", LEFT.toString());
+                Utils.telemetry.addData("Finished Turning LEFT", (Math.abs(error) <= MOE));
+                break;
+
+            case LEFT:
+                power = 0;
+                if (feederCount < 1) feederCount += 1;
+                else current_ps_state = END;
+
+                Utils.telemetry.addData("Status", "Shooting LEFT");
+                break;
+        }
+
+        setDrivePower(0, 0, turn_direction, power);
+    }
+
 }
