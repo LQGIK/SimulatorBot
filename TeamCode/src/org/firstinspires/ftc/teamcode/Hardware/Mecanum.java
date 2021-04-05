@@ -19,6 +19,7 @@ import org.firstinspires.ftc.teamcode.Utilities.Utils;
 
 import static java.lang.Math.floorMod;
 import static java.lang.StrictMath.*;
+import static java.lang.Thread.sleep;
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.END;
 import static org.firstinspires.ftc.teamcode.Utilities.MathUtils.map;
@@ -29,7 +30,7 @@ import static org.firstinspires.ftc.teamcode.Utilities.Utils.hardwareMap;
 public class Mecanum implements Robot {
 
     // HARDWARE
-    private DcMotor fr, fl, br, bl;
+    public DcMotor fr, fl, br, bl;
     public IMU imu;
 
     public DistanceOdom odom;
@@ -167,9 +168,71 @@ public class Mecanum implements Robot {
     }
 
     public Point shift(double x, double y, double shiftAngle){
-        double shiftedX = (x * Math.cos(toRadians(shiftAngle))) - (y * sin(toRadians(shiftAngle)));
-        double shiftedY = (x * Math.sin(toRadians(shiftAngle))) + (y * cos(toRadians(shiftAngle)));
+        double shiftedY = (x * Math.cos(toRadians(shiftAngle))) - (y * sin(toRadians(shiftAngle)));
+        double shiftedX = (x * Math.sin(toRadians(shiftAngle))) + (y * cos(toRadians(shiftAngle)));
         return new Point(shiftedX, shiftedY);
+    }
+
+    public double getRotationalTicks(){
+        return (-0.25) * (fr.getCurrentPosition() - bl.getCurrentPosition() + br.getCurrentPosition() - fl.getCurrentPosition());
+    }
+
+    public double getPositionWORot(){
+        return getPosition() - getRotationalTicks();
+    }
+
+    public void strafe(double angle, double inches, double directionFacingAngle, double acceleration, SyncTask task){
+
+        ElapsedTime time = new ElapsedTime();
+        System.out.println(angle + " " + inches);
+        double ticks = convertInches2Ticks(inches);
+
+
+        angle = closestRelativeAngle(angle);
+        double startAngle = imu.getAngle();
+        directionFacingAngle = findClosestAngle(directionFacingAngle, imu.getAngle());
+
+
+        resetMotors();                                              // Reset Motor Encoder
+
+        double radians = (angle + 90) * (Math.PI / 180);             // Convert to NORTH=0, to NORTH=90 like  unit circle, and also to radians
+        double yFactor = Math.sin(radians);                         // Unit Circle Y
+        double xFactor = Math.cos(radians);                         // Unit Circle X
+        double yTicks = Math.abs(yFactor * ticks);
+        double xTicks = Math.abs(xFactor * ticks);
+        double distance = Math.max(yTicks, xTicks);
+
+
+        // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
+        double normalizeToPower = 1 / Math.max(Math.abs(xFactor), Math.abs(yFactor));
+        double drive = normalizeToPower * yFactor;                 // Fill out power to a max of 1
+        double strafe = normalizeToPower * xFactor;                // Fill out power to a max of 1
+        double turn = 0;
+
+
+        currentPosition = getPosition();
+        while (getPosition() < distance && Utils.isActive()){
+
+            // Execute task synchronously
+            if (task != null) task.execute();
+
+            // Power ramping
+            double power = powerRamp(currentPosition, distance, acceleration, 1);
+
+            // PID Controller
+            double error = startAngle - imu.getAngle();
+            turn = rotationPID.update(error) * -1;
+            //turn = error * DashConstants.learning_rate * -1;
+            setDrivePower(drive * power, strafe * power, turn, 1);
+
+            // Log and get new position
+            currentPosition = getPosition();
+
+
+            Utils.telemetry.addData("Error", error);
+            Utils.telemetry.update();
+        }
+        setAllPower(0);
     }
 
 
@@ -193,6 +256,7 @@ public class Mecanum implements Robot {
         double xFactor = cos(radians);
         double yTicks = abs(yFactor * ticks);
         double xTicks = abs(xFactor * ticks);
+        double rTicks = 0;
         double distance = max(yTicks, xTicks);
 
         // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
@@ -200,23 +264,38 @@ public class Mecanum implements Robot {
         double normalizeToPower = 1 / max(abs(xFactor), abs(yFactor));
         double drive = normalizeToPower * yFactor;                 // Fill out power to a max of 1
         double strafe = normalizeToPower * xFactor;                // Fill out power to a max of 1
-        double turn = 0;
+        double turn = 1;
         double power = 0;
 
+        double currentPosition = getPositionWORot();
+        while (currentPosition < distance && Utils.isActive()){
 
-        while (getPosition() < distance && Utils.isActive()){
+            // Get current position
+            currentPosition = getPositionWORot();
 
             // Execute task synchronously
             if (task != null) task.execute();
 
+            // Turning
+            Point m = shift(strafe, drive, imu.getAngle() % 360);
+
             // Power ramping
-            power = powerRamp(getPosition(), distance, acceleration, 1);
+            //power = powerRamp(currentPosition, distance, acceleration, 1);
+            power = 1;
 
             // PID Controller
-            turn = rotationPID.update(startAngle - imu.getAngle()) * -1;
+            //turn = Range.clip(rotationPID.update(90 - imu.getAngle()) * -1, -1, 1);
+            rTicks = getRotationalTicks();
+            System.out.println("Position: " + currentPosition);
+            System.out.println("RTicks: " + rTicks);
+            System.out.println("Angle: " + imu.getAngle());
+            Utils.telemetry.addData("Position", currentPosition);
+            Utils.telemetry.addData("RTicks", rTicks);
+            Utils.telemetry.addData("Angle", imu.getAngle());
+            Utils.telemetry.update();
 
             // Set Movement Power
-            setDrivePower(drive * power, strafe * power, turn, 1);
+            setDrivePower(m.y, m.x, turn, power);
         }
         setAllPower(0);
     }
@@ -266,19 +345,19 @@ public class Mecanum implements Robot {
     }
 
     //@RequiresApi(api = Build.VERSION_CODES.N)
-    public void turn(double target_angle, double MOE, double acceleration) {
+    public void linearTurn(double target_angle, double MOE, double acceleration) {
 
-        double startTime = System.currentTimeMillis();
+        resetMotors();
+
         double turn_direction, pid_return, power, powerRampPosition;
 
 
         //            Calc Power Ramping and PID Values           //
-        double current_angle = imu.getAngle();
+        double current_angle = imu.getAngle(); System.out.println(current_angle);
         double startAngle = current_angle;
         double actual_target_angle = findClosestAngle(target_angle, current_angle);
         double startDeltaAngle = Math.abs(actual_target_angle - current_angle);
         double error = actual_target_angle - current_angle;
-
 
         while ((Math.abs(error) > MOE) && Utils.isActive()) {
 
@@ -296,7 +375,21 @@ public class Mecanum implements Robot {
             current_angle = imu.getAngle();
 
 
+            System.out.println(current_angle);
+
+            System.out.println("AVG " + getPosition());
+            System.out.println("FR " + fr.getCurrentPosition());
+            System.out.println("FL " + fl.getCurrentPosition());
+            System.out.println("BR " + br.getCurrentPosition());
+            System.out.println("BL " + bl.getCurrentPosition());
+
+
+
             Utils.telemetry.addData("Finished", (Math.abs(error) <= MOE));
+            Utils.telemetry.addData("FR", fr.getCurrentPosition());
+            Utils.telemetry.addData("FL", fl.getCurrentPosition());
+            Utils.telemetry.addData("BR", br.getCurrentPosition());
+            Utils.telemetry.addData("BL", bl.getCurrentPosition());
             Utils.telemetry.update();
         }
         setAllPower(0);
