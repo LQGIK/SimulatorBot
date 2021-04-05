@@ -264,11 +264,11 @@ public class Mecanum implements Robot {
         double normalizeToPower = 1 / max(abs(xFactor), abs(yFactor));
         double drive = normalizeToPower * yFactor;                 // Fill out power to a max of 1
         double strafe = normalizeToPower * xFactor;                // Fill out power to a max of 1
-        double turn = 1;
+        double turn = 0;
         double power = 0;
 
         double currentPosition = getPositionWORot();
-        while (currentPosition < distance && Utils.isActive()){
+        while (getPosition() < distance && Utils.isActive()){
 
             // Get current position
             currentPosition = getPositionWORot();
@@ -280,8 +280,8 @@ public class Mecanum implements Robot {
             Point m = shift(strafe, drive, imu.getAngle() % 360);
 
             // Power ramping
-            //power = powerRamp(currentPosition, distance, acceleration, 1);
-            power = 1;
+            power = powerRamp(currentPosition, distance, acceleration, 1);
+            //power = 1;
 
             // PID Controller
             //turn = Range.clip(rotationPID.update(90 - imu.getAngle()) * -1, -1, 1);

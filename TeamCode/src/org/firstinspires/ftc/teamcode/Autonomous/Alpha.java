@@ -48,7 +48,7 @@ public class Alpha extends LinearOpMode {
         initialize();
         waitForStart();
 
-        //robot.linearTurn(-92.99, 0.01, 0.1);
+        //robot.linearTurn(-109.48, 0.01, 0.1);
         robot.linearStrafe(0, 100, 0.1, null);
 
         System.out.println("SAngle: " + robot.imu.getAngle());
