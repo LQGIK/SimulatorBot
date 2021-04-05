@@ -13,10 +13,12 @@ import org.firstinspires.ftc.teamcode.Hardware.Sensors.IMU;
 import org.firstinspires.ftc.teamcode.Utilities.DashConstants.Dash_Movement;
 import org.firstinspires.ftc.teamcode.Utilities.MathUtils;
 import org.firstinspires.ftc.teamcode.Utilities.PID.PID;
+import org.firstinspires.ftc.teamcode.Utilities.Point;
 import org.firstinspires.ftc.teamcode.Utilities.SyncTask;
 import org.firstinspires.ftc.teamcode.Utilities.Utils;
 
 import static java.lang.Math.floorMod;
+import static java.lang.StrictMath.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.END;
 import static org.firstinspires.ftc.teamcode.Utilities.MathUtils.map;
@@ -112,10 +114,62 @@ public class Mecanum implements Robot {
         bl.setPower((drive - strafe + turn) * velocity);
     }
 
+    /**
+     * @param targetAngle
+     * @return
+     */
     public double closestRelativeAngle(double targetAngle){
         double simpleTargetDelta = floorMod(Math.round(((360 - targetAngle) + imu.getAngle()) * 1e6), Math.round(360.000 * 1e6)) / 1e6;
         double alternateTargetDelta = -1 * (360 - simpleTargetDelta);
         return StrictMath.abs(simpleTargetDelta) >= StrictMath.abs(alternateTargetDelta) ? 0 - simpleTargetDelta : 0 - alternateTargetDelta;
+    }
+
+    /**
+     * @param targetAngle
+     * @param currentAngle
+     * @return
+     */
+    //@RequiresApi(api = Build.VERSION_CODES.N)
+    public static double findClosestAngle(double targetAngle, double currentAngle){
+        double simpleTargetDelta = floorMod(Math.round(((360 - targetAngle) + currentAngle) * 1e6), Math.round(360.000 * 1e6)) / 1e6;
+        double alternateTargetDelta = -1 * (360 - simpleTargetDelta);
+        return StrictMath.abs(simpleTargetDelta) <= StrictMath.abs(alternateTargetDelta) ? currentAngle - simpleTargetDelta : currentAngle - alternateTargetDelta;
+    }
+
+
+    /**
+     * @param position
+     * @param distance
+     * @param acceleration
+     * @return
+     */
+    public static double powerRamp(double position, double distance, double acceleration, double maxVelocity){
+        /*
+         *  The piece wise function has domain restriction [0, inf] and range restriction [0, 1]
+         *  Simply returns a proportional constant
+         */
+
+
+        // Necessary otherwise we're stuck at position 0 (sqrt(0) = 0)
+        position += 0.1;
+
+        // Constant to map power to [0, 1]
+        double normFactor = maxVelocity / Math.sqrt(acceleration * distance);
+
+        // Modeling a piece wise of power as a function of distance
+        double p1       = normFactor * Math.sqrt(acceleration * position);
+        double p2       = maxVelocity;
+        double p3       = normFactor * (Math.sqrt(acceleration * (distance - position)));
+        double power    = Math.min(Math.min(p1, p2), p3) + 0.1;
+        power           = Range.clip(power, 0.1, 1);
+
+        return power;
+    }
+
+    public Point shift(double x, double y, double shiftAngle){
+        double shiftedX = (x * Math.cos(toRadians(shiftAngle))) - (y * sin(toRadians(shiftAngle)));
+        double shiftedY = (x * Math.sin(toRadians(shiftAngle))) + (y * cos(toRadians(shiftAngle)));
+        return new Point(shiftedX, shiftedY);
     }
 
 
@@ -123,65 +177,92 @@ public class Mecanum implements Robot {
      * @param angle
      * @param inches
      */
-    public void strafe(double angle, double inches, double directionFacingAngle, double acceleration, SyncTask task){
+    public void linearStrafe(double angle, double inches, double acceleration, SyncTask task){
 
-        ElapsedTime time = new ElapsedTime();
-        System.out.println(angle + " " + inches);
+        // Initialize starter variables
+        resetMotors();
         double ticks = convertInches2Ticks(inches);
+        double startAngle = imu.getAngle();
 
+        // Find facing angle
         angle = closestRelativeAngle(angle);
-        directionFacingAngle = findClosestAngle(directionFacingAngle, imu.getAngle());
 
-        resetMotors();                                              // Reset Motor Encoder
-
-        double radians = (angle + 90) * (Math.PI / 180);             // Convert to NORTH=0, to NORTH=90 like  unit circle, and also to radians
-        double yFactor = Math.sin(radians);                         // Unit Circle Y
-        double xFactor = Math.cos(radians);                         // Unit Circle X
-        double yTicks = Math.abs(yFactor * ticks);
-        double xTicks = Math.abs(xFactor * ticks);
-        double distance = Math.max(yTicks, xTicks);
-
+        // Convert to NORTH=0, to NORTH=90 like  unit circle, and also to radians
+        double radians = (angle + 90) * (PI / 180);
+        double yFactor = sin(radians);
+        double xFactor = cos(radians);
+        double yTicks = abs(yFactor * ticks);
+        double xTicks = abs(xFactor * ticks);
+        double distance = max(yTicks, xTicks);
 
         // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
-        double normalizeToPower = 1 / Math.max(Math.abs(xFactor), Math.abs(yFactor));
+        // The yPower and xPower should maintain the same ratio with eachother
+        double normalizeToPower = 1 / max(abs(xFactor), abs(yFactor));
         double drive = normalizeToPower * yFactor;                 // Fill out power to a max of 1
         double strafe = normalizeToPower * xFactor;                // Fill out power to a max of 1
         double turn = 0;
+        double power = 0;
 
 
-        currentPosition = getPosition();
         while (getPosition() < distance && Utils.isActive()){
 
             // Execute task synchronously
             if (task != null) task.execute();
 
             // Power ramping
-            double power = Utils.powerRamp(currentPosition, distance, acceleration);
+            power = powerRamp(getPosition(), distance, acceleration, 1);
 
             // PID Controller
-            double error = directionFacingAngle - imu.getAngle();
-            turn = rotationPID.update(error) * -1;
-            //turn = error * DashConstants.learning_rate * -1;
+            turn = rotationPID.update(startAngle - imu.getAngle()) * -1;
+
+            // Set Movement Power
             setDrivePower(drive * power, strafe * power, turn, 1);
-
-            // Log and get new position
-            currentPosition = getPosition();
-
-
-            Utils.telemetry.addData("Error", error);
-            Utils.telemetry.addData("Turn", turn);
-            Utils.telemetry.addData("Drive", drive * power);
-            Utils.telemetry.addData("Strafe", strafe * power);
-            Utils.telemetry.update();
         }
         setAllPower(0);
     }
 
-    //@RequiresApi(api = Build.VERSION_CODES.N)
-    public static double findClosestAngle(double targetAngle, double currentAngle){
-        double simpleTargetDelta = floorMod(Math.round(((360 - targetAngle) + currentAngle) * 1e6), Math.round(360.000 * 1e6)) / 1e6;
-        double alternateTargetDelta = -1 * (360 - simpleTargetDelta);
-        return StrictMath.abs(simpleTargetDelta) <= StrictMath.abs(alternateTargetDelta) ? currentAngle - simpleTargetDelta : currentAngle - alternateTargetDelta;
+    public void iterativeStrafe(double angle, double inches, double acceleration, SyncTask task){
+
+        // Initialize starter variables
+        resetMotors();
+        double ticks = convertInches2Ticks(inches);
+        double startAngle = imu.getAngle();
+
+        // Find facing angle
+        angle = closestRelativeAngle(angle);
+
+        // Convert to NORTH=0, to NORTH=90 like  unit circle, and also to radians
+        double radians = (angle + 90) * (PI / 180);
+        double yFactor = sin(radians);
+        double xFactor = cos(radians);
+        double yTicks = abs(yFactor * ticks);
+        double xTicks = abs(xFactor * ticks);
+        double distance = max(yTicks, xTicks);
+
+        // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
+        // The yPower and xPower should maintain the same ratio with eachother
+        double normalizeToPower = 1 / max(abs(xFactor), abs(yFactor));
+        double drive = normalizeToPower * yFactor;                 // Fill out power to a max of 1
+        double strafe = normalizeToPower * xFactor;                // Fill out power to a max of 1
+        double turn = 0;
+        double power = 0;
+
+
+        if (getPosition() < distance && Utils.isActive()){
+
+            // Execute task synchronously
+            if (task != null) task.execute();
+
+            // Power ramping
+            power = powerRamp(getPosition(), distance, acceleration, 1);
+
+            // PID Controller
+            turn = rotationPID.update(startAngle - imu.getAngle()) * -1;
+
+            // Set Movement Power
+            setDrivePower(drive * power, strafe * power, turn, 1);
+        }
+        else setAllPower(0);
     }
 
     //@RequiresApi(api = Build.VERSION_CODES.N)
@@ -199,7 +280,6 @@ public class Mecanum implements Robot {
         double error = actual_target_angle - current_angle;
 
 
-
         while ((Math.abs(error) > MOE) && Utils.isActive()) {
 
             //              PID                     //
@@ -207,31 +287,15 @@ public class Mecanum implements Robot {
             pid_return = rotationPID.update(error) * -1;
             turn_direction = (pid_return > 0) ? 1 : -1;
 
-
             //              Power Ramping            //
             powerRampPosition = MathUtils.map(current_angle, startAngle, actual_target_angle, 0, startDeltaAngle);
-            power = Utils.powerRamp(powerRampPosition, startDeltaAngle, acceleration);
-
-
-            //turn = (turn > 0) ? Range.clip(turn, 0.1, 1) : Range.clip(turn, -1, -0.1);
-
-
-            //        Check timeout             //
-            //double elapsedTime = Math.abs(System.currentTimeMillis() - startTime);
-            //if (elapsedTime > 3000) break;
-
+            power = powerRamp(powerRampPosition, startDeltaAngle, acceleration, 1);
 
             //        Set Power                 //
             setDrivePower(0, 0, turn_direction, power);
             current_angle = imu.getAngle();
 
 
-
-            //          Logging                 //
-            Utils.telemetry.addData("Error", error);
-            Utils.telemetry.addData("Turn", turn_direction);
-            Utils.telemetry.addData("Power", power);
-            Utils.telemetry.addData("IMU", current_angle);
             Utils.telemetry.addData("Finished", (Math.abs(error) <= MOE));
             Utils.telemetry.update();
         }
@@ -321,5 +385,4 @@ public class Mecanum implements Robot {
 
         setDrivePower(0, 0, turn_direction, power);
     }
-
 }

@@ -6,18 +6,14 @@ package org.firstinspires.ftc.teamcode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls;
 import org.firstinspires.ftc.teamcode.Hardware.Mecanum;
+import org.firstinspires.ftc.teamcode.Navigation.Odometry;
+import org.firstinspires.ftc.teamcode.Utilities.Point;
 import org.firstinspires.ftc.teamcode.Utilities.Utils;
 
-import static java.lang.StrictMath.cos;
-import static org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit.INCH;
-import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.DOWN;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.Input.*;
-import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.*;
-import static org.firstinspires.ftc.teamcode.Utilities.Utils.print;
 
 
 @Autonomous(name="AlphaAuto", group="Autonomous Linear Opmode")
@@ -25,6 +21,7 @@ public class Alpha extends LinearOpMode {
 
     private Mecanum robot;
     private ButtonControls BC;
+    private Odometry odom;
     private ElapsedTime time = new ElapsedTime();
 
     public void BREAKPOINT(){
@@ -41,6 +38,7 @@ public class Alpha extends LinearOpMode {
         Utils.setOpMode(this);
         robot = new Mecanum();
         BC = new ButtonControls(gamepad1);
+        odom = new Odometry(0, 0, 0);
     }
 
     //@RequiresApi(api = Build.VERSION_CODES.N)
@@ -50,14 +48,21 @@ public class Alpha extends LinearOpMode {
         initialize();
         waitForStart();
 
-        // 1) Set feederCount to 0
-        robot.feederCount = 0;
+        robot.linearStrafe(-30, 80, 0.1, null);
+        while (opModeIsActive()){
+            double x = 0;
+            double y = 1;
+            double t = 1;
+            Point m = shift(x, y,robot.imu.getAngle() % 360);
+            robot.setDrivePower(m.x, m.y, t, 1);
 
-        // 2) Turn to first powershot
-        robot.turn(83, 0.5, 0.1);
-        sleep(500);
-        robot.turn(88, 0.5, 0.01);
-        sleep(500);
-        robot.turn(92, 0.5, 0.01);
+        }
     }
+
+    public Point shift(double x, double y, double t){
+        double shiftedX = (x * Math.cos(Math.toRadians(t))) - (y * Math.sin(Math.toRadians(t)));
+        double shiftedY = (x * Math.sin(Math.toRadians(t))) + (y * Math.cos(Math.toRadians(t)));
+        return new Point(shiftedX, shiftedY);
+    }
+
 }
