@@ -5,7 +5,6 @@ package org.firstinspires.ftc.teamcode.Hardware;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.teamcode.Hardware.Sensors.DistanceOdom;
@@ -22,9 +21,7 @@ import static java.lang.StrictMath.*;
 import static java.lang.Thread.sleep;
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.END;
-import static org.firstinspires.ftc.teamcode.Utilities.MathUtils.map;
 import static org.firstinspires.ftc.teamcode.Utilities.Utils.convertInches2Ticks;
-import static org.firstinspires.ftc.teamcode.Utilities.Utils.hardwareMap;
 
 
 public class Mecanum implements Robot {
@@ -173,12 +170,22 @@ public class Mecanum implements Robot {
         return new Point(shiftedX, shiftedY);
     }
 
-    public double getRotationalTicks(){
+    public double getRComp(){
         return (-0.25) * (fr.getCurrentPosition() - bl.getCurrentPosition() + br.getCurrentPosition() - fl.getCurrentPosition());
     }
 
+    public double getXComp(){
+        double x1 = 0.5 * (fl.getCurrentPosition() + br.getCurrentPosition() - (2 * getYComp()));
+        double x2 = -0.5 * (fr.getCurrentPosition() + bl.getCurrentPosition() - (2 * getYComp()));
+        return (x1 + x2) / 2;
+    }
+
+    public double getYComp(){
+        return (fr.getCurrentPosition() + fl.getCurrentPosition() + br.getCurrentPosition() + bl.getCurrentPosition()) / 4;
+    }
+
     public double getPositionWORot(){
-        return getPosition() - getRotationalTicks();
+        return getPosition() - getRComp();
     }
 
     public void strafe(double angle, double inches, double directionFacingAngle, double acceleration, SyncTask task){
@@ -240,11 +247,11 @@ public class Mecanum implements Robot {
      * @param angle
      * @param inches
      */
-    public void linearStrafe(double angle, double inches, double acceleration, SyncTask task){
+    public void linearStrafe(double angle, double ticks, double acceleration, SyncTask task){
 
         // Initialize starter variables
         resetMotors();
-        double ticks = convertInches2Ticks(inches);
+        //double ticks = convertInches2Ticks(inches);
         double startAngle = imu.getAngle();
 
         // Find facing angle
@@ -257,6 +264,7 @@ public class Mecanum implements Robot {
         double yTicks = abs(yFactor * ticks);
         double xTicks = abs(xFactor * ticks);
         double rTicks = 0;
+        double cTicks = 0;
         double distance = max(yTicks, xTicks);
 
         // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
@@ -265,10 +273,10 @@ public class Mecanum implements Robot {
         double drive = normalizeToPower * yFactor;                 // Fill out power to a max of 1
         double strafe = normalizeToPower * xFactor;                // Fill out power to a max of 1
         double turn = 0;
-        double power = 0;
+        double power = 1;
 
         double currentPosition = getPositionWORot();
-        while (getPosition() < distance && Utils.isActive()){
+        while (cTicks < distance && Utils.isActive()){
 
             // Get current position
             currentPosition = getPositionWORot();
@@ -280,16 +288,24 @@ public class Mecanum implements Robot {
             Point m = shift(strafe, drive, imu.getAngle() % 360);
 
             // Power ramping
-            power = powerRamp(currentPosition, distance, acceleration, 1);
-            //power = 1;
+            //power = powerRamp(currentPosition, distance, acceleration, 1);
 
             // PID Controller
             //turn = Range.clip(rotationPID.update(90 - imu.getAngle()) * -1, -1, 1);
-            rTicks = getRotationalTicks();
+            rTicks = getRComp();
+            yTicks = getYComp();
+            xTicks = getXComp();
+            cTicks = sqrt(pow(xTicks, 2) + pow(yTicks, 2));
             System.out.println("Position: " + currentPosition);
+            System.out.println("YTicks: " + yTicks);
+            System.out.println("XTicks: " + xTicks);
             System.out.println("RTicks: " + rTicks);
+            System.out.println("CTicks: " + cTicks);
             System.out.println("Angle: " + imu.getAngle());
             Utils.telemetry.addData("Position", currentPosition);
+            Utils.telemetry.addData("CTicks", cTicks);
+            Utils.telemetry.addData("YTicks", yTicks);
+            Utils.telemetry.addData("XTicks", xTicks);
             Utils.telemetry.addData("RTicks", rTicks);
             Utils.telemetry.addData("Angle", imu.getAngle());
             Utils.telemetry.update();

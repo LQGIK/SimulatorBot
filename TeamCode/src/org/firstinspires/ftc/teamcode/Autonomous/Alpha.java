@@ -49,7 +49,7 @@ public class Alpha extends LinearOpMode {
         waitForStart();
 
         //robot.linearTurn(-109.48, 0.01, 0.1);
-        robot.linearStrafe(0, 100, 0.1, null);
+        robot.linearStrafe(0, 5000, 0.1, null);
 
         System.out.println("SAngle: " + robot.imu.getAngle());
         System.out.println("AVG " + robot.getPosition());
