@@ -24,6 +24,12 @@ public class Odometry {
         lastA = angle;
     }
 
+    public void update(Orientation c){
+        lastX = c.x;
+        lastY = c.y;
+        lastA = c.a;
+    }
+
     public Orientation getOrientation(){
         return new Orientation(lastX, lastY, lastA);
     }

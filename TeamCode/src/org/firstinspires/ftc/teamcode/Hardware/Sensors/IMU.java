@@ -44,7 +44,7 @@ public class IMU {
 
         // Get the current angle
         Orientation angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
-        double currentAngle = angles.firstAngle;
+        double currentAngle = angles.firstAngle * -1;
 
         // Update how many times we have wrapped
         deltaAngle = updateWraps(previousAngle, currentAngle, deltaAngle);

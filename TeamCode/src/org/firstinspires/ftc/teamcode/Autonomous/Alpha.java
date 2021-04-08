@@ -48,8 +48,28 @@ public class Alpha extends LinearOpMode {
         initialize();
         waitForStart();
 
-        //robot.linearTurn(45, 0.01, 0.1);
-        robot.linearStrafe(45, 5000, 0.1, null);
+        Point home = new Point(0, 0);
+        Point loc90 = new Point(0, 5000);
+        Point loc45 = new Point(3535, 3535);
+        Point loc0 = new Point(5000, 0);
+        Point loc30 = new Point(4330.127, 2500);
+
+        /*
+        robot.linearStrafe(loc90, 0.1, null);
+        robot.linearStrafe(home, 0.1, null);
+
+        robot.linearStrafe(loc45, 0.1, null);
+        robot.linearStrafe(home, 0.1, null);
+        */
+
+        robot.linearStrafe(loc30, 0.1, null);
+        robot.linearStrafe(home, 0.1, null);
+
+        /*
+        robot.linearStrafe(loc0, 0.1, null);
+        robot.linearStrafe(home, 0.1, null);
+
+         */
 
         System.out.println("SAngle: " + robot.imu.getAngle());
         System.out.println("AVG " + robot.getPosition());

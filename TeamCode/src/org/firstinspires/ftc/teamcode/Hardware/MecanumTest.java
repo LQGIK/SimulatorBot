@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.Hardware;
 
+import org.firstinspires.ftc.teamcode.Navigation.Orientation;
 import org.firstinspires.ftc.teamcode.Utilities.Point;
 
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.shift;
@@ -24,6 +25,13 @@ class MecanumTest {
     }
 
     @org.junit.jupiter.api.Test
-    void unShiftTest() {
+    void odomTest() {
+
+        Point home = new Point(0, 0);
+        Point loc30 = new Point(4330, 2500);
+        Orientation startO = new Orientation(4330, 2500, 90);
+
+
+
     }
 }

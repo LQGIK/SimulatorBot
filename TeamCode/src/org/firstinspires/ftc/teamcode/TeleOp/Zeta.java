@@ -5,17 +5,13 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls;
 import org.firstinspires.ftc.teamcode.Hardware.Controls.JoystickControls;
 import org.firstinspires.ftc.teamcode.Hardware.Mecanum;
-import org.firstinspires.ftc.teamcode.Hardware.Sensors.DistanceOdom;
 import org.firstinspires.ftc.teamcode.Utilities.PID.RingBuffer;
 import org.firstinspires.ftc.teamcode.Utilities.Point;
 import org.firstinspires.ftc.teamcode.Utilities.Utils;
 
-import static java.lang.StrictMath.cos;
-import static java.lang.StrictMath.floor;
 import static org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit.INCH;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.DOWN;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.TAP;
@@ -23,9 +19,6 @@ import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.In
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.JoystickControls.Input.LEFT;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.JoystickControls.Input.RIGHT;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.JoystickControls.Value.*;
-import static org.firstinspires.ftc.teamcode.Hardware.Sensors.DistanceOdom.RobotSide.*;
-import static org.firstinspires.ftc.teamcode.Hardware.Sensors.DistanceOdom.FieldSide.*;
-
 
 
 @TeleOp(name = "Zeta TeleOp", group="Linear TeleOp")
@@ -190,8 +183,8 @@ public class Zeta extends LinearOpMode {
              ----------- L O G G I N G -----------
 
                                                 */
-            robot.odom.update(robot.imu.getAngle());
-            Point coords = robot.odom.getCoords();
+            robot.distanceOdom.update(robot.imu.getAngle());
+            Point coords = robot.distanceOdom.getCoords();
             Utils.telemetry.addData("X", coords.x);
             Utils.telemetry.addData("Y", coords.y);
             Utils.telemetry.addData("DB", db.getDistance(INCH));

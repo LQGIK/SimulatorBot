@@ -9,6 +9,8 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.teamcode.Hardware.Sensors.DistanceOdom;
 import org.firstinspires.ftc.teamcode.Hardware.Sensors.IMU;
+import org.firstinspires.ftc.teamcode.Navigation.Odometry;
+import org.firstinspires.ftc.teamcode.Navigation.Orientation;
 import org.firstinspires.ftc.teamcode.Utilities.DashConstants.Dash_Movement;
 import org.firstinspires.ftc.teamcode.Utilities.MathUtils;
 import org.firstinspires.ftc.teamcode.Utilities.PID.PID;
@@ -30,7 +32,8 @@ public class Mecanum implements Robot {
     public DcMotor fr, fl, br, bl;
     public IMU imu;
 
-    public DistanceOdom odom;
+    public DistanceOdom distanceOdom;
+    public Odometry odom;
 
 
     // SYSTEMS
@@ -59,7 +62,8 @@ public class Mecanum implements Robot {
         initAngle = imu.getAngle();
 
 
-        odom = new DistanceOdom("front_distance", "right_distance");
+        distanceOdom = new DistanceOdom("front_distance", "right_distance");
+        odom = new Odometry(0, 0, imu.getAngle());
     }
 
     /**
@@ -201,7 +205,8 @@ public class Mecanum implements Robot {
 
         ElapsedTime time = new ElapsedTime();
         System.out.println(angle + " " + inches);
-        double ticks = convertInches2Ticks(inches);
+        //double ticks = convertInches2Ticks(inches);
+        double ticks = inches;
 
 
         angle = closestRelativeAngle(angle);
@@ -237,7 +242,7 @@ public class Mecanum implements Robot {
 
             // PID Controller
             double error = startAngle - imu.getAngle();
-            turn = rotationPID.update(error) * -1;
+            //turn = rotationPID.update(error) * -1;
             //turn = error * DashConstants.learning_rate * -1;
             setDrivePower(drive * power, strafe * power, turn, 1);
 
@@ -251,6 +256,69 @@ public class Mecanum implements Robot {
         setAllPower(0);
     }
 
+    public void linearStrafe(Point dest, double acceleration, SyncTask task){
+
+        // Initialize starter variables
+        resetMotors();
+        //double ticks = convertInches2Ticks(inches);
+
+        // Convert to NORTH=0, to NORTH=90 like  unit circle, and also to radians
+        dest.y *= -1;
+        Orientation startO = odom.getOrientation();
+        Orientation curO = new Orientation(startO.x, startO.y, startO.a);
+        double distX = dest.x - startO.x;
+        double distY = dest.y - startO.y;
+        double distC = sqrt(pow(distX, 2) + pow(distY, 2));
+        double targA = atan2(distY, distX);
+        double curC = 0;
+
+        // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
+        // The yPower and xPower should maintain the same ratio with each other
+        double maxPower = 1;
+        double normalizeToPower = maxPower / max(abs(distX), abs(distY));
+        double px0 = normalizeToPower * distX;                  // Fill out power to a max of 1
+        double py0 = normalizeToPower * distY;                  // Fill out power to a max of 1
+        double pr0 = 0;
+
+        while (curC < distC && Utils.isActive()){
+
+            // Execute task synchronously
+            if (task != null) task.execute();
+
+            // Power ramping
+            //power = powerRamp(currentPosition, distance, acceleration, maxPower);
+
+            // PID CONTROLLER
+            //pr0 = Range.clip(rotationPID.update(90 - imu.getAngle()) * -1, -1, 1);
+
+            // SHIFT POWER
+            Point shiftedPowers = shift(px0, py0, curO.a % 360);
+
+            // Un-shift X and Y distances traveled
+            Point relPos = unShift(getXComp(), getYComp(), curO.a % 360);
+            curO.x = relPos.x + startO.x;
+            curO.y = relPos.y + startO.y;
+            curO.a = imu.getAngle();
+            curC = sqrt(pow(relPos.x, 2) + pow(relPos.y, 2));
+
+            // SET POWER
+            setDrivePower(shiftedPowers.y, shiftedPowers.x, pr0, maxPower);
+
+            // LOGGING
+            System.out.println("curX: " + curO.x);
+            System.out.println("curY: " + curO.y);
+            System.out.println("curC: " + curC);
+            System.out.println("Angle: " + imu.getAngle());
+
+            Utils.telemetry.addData("curX", curO.x);
+            Utils.telemetry.addData("curY", curO.y);
+            Utils.telemetry.addData("curC", curC);
+            Utils.telemetry.addData("curA", imu.getAngle());
+            Utils.telemetry.update();
+        }
+        odom.update(curO);
+        setAllPower(0);
+    }
 
     /**
      * @param angle
@@ -260,7 +328,6 @@ public class Mecanum implements Robot {
         // Initialize starter variables
         resetMotors();
         //double ticks = convertInches2Ticks(inches);
-        double startAngle = imu.getAngle();
 
         // Find facing angle
         angle = closestRelativeAngle(angle);
@@ -269,15 +336,14 @@ public class Mecanum implements Robot {
         double radians = (angle + 90) * (PI / 180) * -1;
         double yFactor = sin(radians);
         double xFactor = cos(radians);
-        double yTicks = yFactor * ticks;
-        double xTicks = xFactor * ticks;
+        double cTicks = sqrt(pow(xFactor, 2) + pow(yFactor, 2));
 
         // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
         // The yPower and xPower should maintain the same ratio with eachother
-        double normalizeToPower = 1 / max(abs(xFactor), abs(yFactor));
-        double drive = normalizeToPower * yFactor;                 // Fill out power to a max of 1
-        double strafe = normalizeToPower * xFactor;                // Fill out power to a max of 1
-        double turn = 1;
+        double normalizeToPower = 1 ;// max(abs(xFactor), abs(yFactor));
+        double y0 = normalizeToPower * yFactor;                 // Fill out power to a max of 1
+        double x0 = normalizeToPower * xFactor;                // Fill out power to a max of 1
+        double turn = 0;
         double power = 1;
 
         double yPos = 0; double xPos = 0; double cPos = 0; double rPos = 0;
@@ -288,7 +354,7 @@ public class Mecanum implements Robot {
             if (task != null) task.execute();
 
             // Turning
-            Point m = shift(strafe, drive, imu.getAngle() % 360);
+            Point m = shift(x0, y0, imu.getAngle() % 360);
 
             // Power ramping
             //power = powerRamp(currentPosition, distance, acceleration, 1);
