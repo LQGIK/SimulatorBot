@@ -48,8 +48,8 @@ public class Alpha extends LinearOpMode {
         initialize();
         waitForStart();
 
-        //robot.linearTurn(-109.48, 0.01, 0.1);
-        robot.linearStrafe(0, 5000, 0.1, null);
+        //robot.linearTurn(45, 0.01, 0.1);
+        robot.linearStrafe(45, 5000, 0.1, null);
 
         System.out.println("SAngle: " + robot.imu.getAngle());
         System.out.println("AVG " + robot.getPosition());
@@ -57,23 +57,5 @@ public class Alpha extends LinearOpMode {
         System.out.println("FL " + robot.fl.getCurrentPosition());
         System.out.println("BR " + robot.br.getCurrentPosition());
         System.out.println("BL " + robot.bl.getCurrentPosition());
-
-        /*
-        while (opModeIsActive()){
-            double x = 0;
-            double y = 1;
-            double t = 1;
-            Point m = shift(x, y,robot.imu.getAngle() % 360);
-            robot.setDrivePower(m.x, m.y, t, 1);
-
-        }
-         */
     }
-
-    public Point shift(double x, double y, double t){
-        double shiftedX = (x * Math.cos(Math.toRadians(t))) - (y * Math.sin(Math.toRadians(t)));
-        double shiftedY = (x * Math.sin(Math.toRadians(t))) + (y * Math.cos(Math.toRadians(t)));
-        return new Point(shiftedX, shiftedY);
-    }
-
 }
