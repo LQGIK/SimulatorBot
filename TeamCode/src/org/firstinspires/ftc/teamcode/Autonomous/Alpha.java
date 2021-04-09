@@ -54,51 +54,31 @@ public class Alpha extends LinearOpMode {
         initialize();
         waitForStart();
 
-        Point home = new Point(0, 0);
-        Point loc0 = new Point(5000, 0);
-        Point loc10 = new Point(5000 * cos(10 * PI / 180.0), 5000 * sin(10 * PI / 180.0));
-        Point loc20 = new Point(5000 * cos(20 * PI / 180.0), 5000 * sin(20 * PI / 180.0));
-        Point loc22_5 = new Point(5000 * cos(22.5 * PI / 180.0), 5000 * sin(22.5 * PI / 180.0));
-        Point loc30 = getPoint(30, 5000);
-        Point loc40 = getPoint(40, 5000);
-        Point loc45 = getPoint(45, 5000);
-        Point loc50 = getPoint(50, 5000);
-        Point loc60 = getPoint(60, 5000);
-        Point loc70 = getPoint(70, 5000);
-        Point loc80 = getPoint(80, 5000);
+        Point home =    new Point(0, 0);
+        Point loc0 =    getPoint(0, 5000);
+        Point loc10 =   getPoint(10, 5000);
+        Point loc20 =   getPoint(20, 5000);
+        Point loc22_5 = getPoint(22.5, 5000);
+        Point loc30 =   getPoint(30, 5000);
+        Point loc40 =   getPoint(40, 5000);
+        Point loc45 =   getPoint(45, 5000);
+        Point loc50 =   getPoint(50, 5000);
+        Point loc60 =   getPoint(60, 5000);
+        Point loc70 =   getPoint(70, 5000);
+        Point loc80 =   getPoint(80, 5000);
 
-        Point loc90 = getPoint(90, 5000);
+        Point loc90 =   getPoint(90, 5000);
 
-        Point loc100 = getPoint(100, 5000);
-        Point loc120 = getPoint(120, 5000);
-        Point loc130 = getPoint(130, 5000);
-        Point loc135 = getPoint(135, 5000);
-        Point loc140 = getPoint(140, 5000);
-        Point loc150 = getPoint(150, 5000);
+        Point loc100 =  getPoint(100, 5000);
+        Point loc120 =  getPoint(120, 5000);
+        Point loc130 =  getPoint(130, 5000);
+        Point loc135 =  getPoint(135, 5000);
+        Point loc140 =  getPoint(140, 5000);
+        Point loc150 =  getPoint(150, 5000);
 
-        /*
-        robot.linearStrafe(loc90, 0.1, null);
+        robot.linearStrafe(getPoint(20, 5000), 0.1, null);
+        robot.linearStrafe(new Point(0, 5000), 0.1, null);
         robot.linearStrafe(home, 0.1, null);
 
-        robot.linearStrafe(loc45, 0.1, null);
-        robot.linearStrafe(home, 0.1, null);
-        */
-
-        // GO 5 DEGREE INCREMENTS UP TO 45, x = ACTUAL, y = TARGET
-        robot.linearStrafe(getPoint(22.01, 5000), 0.1, null);
-        //robot.linearStrafe(home, 0.1, null);
-
-        /*
-        robot.linearStrafe(loc0, 0.1, null);
-        robot.linearStrafe(home, 0.1, null);
-
-         */
-
-        System.out.println("SAngle: " + robot.imu.getAngle());
-        System.out.println("AVG " + robot.getPosition());
-        System.out.println("FR " + robot.fr.getCurrentPosition());
-        System.out.println("FL " + robot.fl.getCurrentPosition());
-        System.out.println("BR " + robot.br.getCurrentPosition());
-        System.out.println("BL " + robot.bl.getCurrentPosition());
     }
 }

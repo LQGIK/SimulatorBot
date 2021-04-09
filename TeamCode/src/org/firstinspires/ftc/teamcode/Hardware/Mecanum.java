@@ -257,8 +257,14 @@ public class Mecanum implements Robot {
     }
 
 
-    public double stinkypoopoo(double x){
-        return x + (7.85836844149 * sin(toRadians(4) * x));
+    public double eurekaSub(double x){
+        return x - toRadians(10) * sin(4 * x);
+    }
+
+    public double eurekaPlus(double x){
+        double c1 = 7.8631064977;
+        double c2 = 8;
+        return x + toRadians(c2) * sin(4 * x - 0.2);
     }
 
     public void linearStrafe(Point dest, double acceleration, SyncTask task){
@@ -274,8 +280,8 @@ public class Mecanum implements Robot {
         double distX = dest.x - startO.x;
         double distY = dest.y - startO.y;
         double distC = sqrt(pow(distX, 2) + pow(distY, 2));
-        double targA = atan2(distY, distX);
-        targA = stinkypoopoo(targA);
+        double targetRadians = atan2(distY, distX);
+        targetRadians = eurekaPlus(targetRadians);
         double curC = 0;
 
         // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
@@ -284,8 +290,8 @@ public class Mecanum implements Robot {
         double normalizeToPower = maxPower / max(abs(distX), abs(distY));
         double px0 = normalizeToPower * distX;                  // Fill out power to a max of 1
         double py0 = normalizeToPower * distY;                  // Fill out power to a max of 1
-        px0 = cos(targA);
-        py0 = sin(targA);
+        px0 = cos(targetRadians);
+        py0 = sin(targetRadians);
         double pr0 = 0;
 
         while (curC < distC && Utils.isActive()){
