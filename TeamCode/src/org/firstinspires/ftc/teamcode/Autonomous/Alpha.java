@@ -12,6 +12,7 @@ import org.firstinspires.ftc.teamcode.Navigation.Odometry;
 import org.firstinspires.ftc.teamcode.Utilities.Point;
 import org.firstinspires.ftc.teamcode.Utilities.Utils;
 
+import static java.lang.StrictMath.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.DOWN;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.Input.*;
 
@@ -41,6 +42,11 @@ public class Alpha extends LinearOpMode {
         odom = new Odometry(0, 0, 0);
     }
 
+    public Point getPoint(double a, double d){
+        double r = a * PI / 180.0;
+        return new Point(d * cos(r), d * sin(r));
+    }
+
     //@RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void runOpMode() {
@@ -49,10 +55,26 @@ public class Alpha extends LinearOpMode {
         waitForStart();
 
         Point home = new Point(0, 0);
-        Point loc90 = new Point(0, 5000);
-        Point loc45 = new Point(3535, 3535);
         Point loc0 = new Point(5000, 0);
-        Point loc30 = new Point(4330.127, 2500);
+        Point loc10 = new Point(5000 * cos(10 * PI / 180.0), 5000 * sin(10 * PI / 180.0));
+        Point loc20 = new Point(5000 * cos(20 * PI / 180.0), 5000 * sin(20 * PI / 180.0));
+        Point loc22_5 = new Point(5000 * cos(22.5 * PI / 180.0), 5000 * sin(22.5 * PI / 180.0));
+        Point loc30 = getPoint(30, 5000);
+        Point loc40 = getPoint(40, 5000);
+        Point loc45 = getPoint(45, 5000);
+        Point loc50 = getPoint(50, 5000);
+        Point loc60 = getPoint(60, 5000);
+        Point loc70 = getPoint(70, 5000);
+        Point loc80 = getPoint(80, 5000);
+
+        Point loc90 = getPoint(90, 5000);
+
+        Point loc100 = getPoint(100, 5000);
+        Point loc120 = getPoint(120, 5000);
+        Point loc130 = getPoint(130, 5000);
+        Point loc135 = getPoint(135, 5000);
+        Point loc140 = getPoint(140, 5000);
+        Point loc150 = getPoint(150, 5000);
 
         /*
         robot.linearStrafe(loc90, 0.1, null);
@@ -62,8 +84,9 @@ public class Alpha extends LinearOpMode {
         robot.linearStrafe(home, 0.1, null);
         */
 
-        robot.linearStrafe(loc30, 0.1, null);
-        robot.linearStrafe(home, 0.1, null);
+        // GO 5 DEGREE INCREMENTS UP TO 45, x = ACTUAL, y = TARGET
+        robot.linearStrafe(getPoint(22.01, 5000), 0.1, null);
+        //robot.linearStrafe(home, 0.1, null);
 
         /*
         robot.linearStrafe(loc0, 0.1, null);

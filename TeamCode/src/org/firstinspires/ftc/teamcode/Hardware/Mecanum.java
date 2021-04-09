@@ -256,6 +256,11 @@ public class Mecanum implements Robot {
         setAllPower(0);
     }
 
+
+    public double stinkypoopoo(double x){
+        return x + (7.85836844149 * sin(toRadians(4) * x));
+    }
+
     public void linearStrafe(Point dest, double acceleration, SyncTask task){
 
         // Initialize starter variables
@@ -270,6 +275,7 @@ public class Mecanum implements Robot {
         double distY = dest.y - startO.y;
         double distC = sqrt(pow(distX, 2) + pow(distY, 2));
         double targA = atan2(distY, distX);
+        targA = stinkypoopoo(targA);
         double curC = 0;
 
         // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
@@ -278,6 +284,8 @@ public class Mecanum implements Robot {
         double normalizeToPower = maxPower / max(abs(distX), abs(distY));
         double px0 = normalizeToPower * distX;                  // Fill out power to a max of 1
         double py0 = normalizeToPower * distY;                  // Fill out power to a max of 1
+        px0 = cos(targA);
+        py0 = sin(targA);
         double pr0 = 0;
 
         while (curC < distC && Utils.isActive()){
@@ -308,6 +316,7 @@ public class Mecanum implements Robot {
             System.out.println("curX: " + curO.x);
             System.out.println("curY: " + curO.y);
             System.out.println("curC: " + curC);
+            System.out.println("atan2(y, x): " + toDegrees(atan2(curO.y, curO.x)));
             System.out.println("Angle: " + imu.getAngle());
 
             Utils.telemetry.addData("curX", curO.x);
