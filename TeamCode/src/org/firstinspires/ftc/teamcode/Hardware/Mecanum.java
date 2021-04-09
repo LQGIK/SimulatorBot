@@ -18,6 +18,7 @@ import org.firstinspires.ftc.teamcode.Utilities.Point;
 import org.firstinspires.ftc.teamcode.Utilities.SyncTask;
 import org.firstinspires.ftc.teamcode.Utilities.Utils;
 
+import static com.qualcomm.robotcore.util.Range.clip;
 import static java.lang.Math.floorMod;
 import static java.lang.StrictMath.*;
 import static java.lang.Thread.sleep;
@@ -152,9 +153,6 @@ public class Mecanum implements Robot {
          */
 
 
-        // Necessary otherwise we're stuck at position 0 (sqrt(0) = 0)
-        position += 0.1;
-
         // Constant to map power to [0, 1]
         double normFactor = maxVelocity / Math.sqrt(acceleration * distance);
 
@@ -163,9 +161,21 @@ public class Mecanum implements Robot {
         double p2       = maxVelocity;
         double p3       = normFactor * (Math.sqrt(acceleration * (distance - position)));
         double power    = Math.min(Math.min(p1, p2), p3) + 0.1;
-        power           = Range.clip(power, 0.1, 1);
+        power           = clip(power, 0.1, 1);
 
         return power;
+    }
+
+    private double powerRamp(double percentageDistance, double a){
+
+        double p1 = sqrt(a * percentageDistance);
+        double p2 = 1;
+        double p3 = sqrt(a * (1 - percentageDistance));
+
+        double p = min(min(p1, p2), p3);
+        p = clip(p, 0.1, 1);
+
+        return p;
     }
 
     public static Point shift(double x, double y, double shiftAngle){
@@ -197,71 +207,11 @@ public class Mecanum implements Robot {
         return (fr.getCurrentPosition() + fl.getCurrentPosition() + br.getCurrentPosition() + bl.getCurrentPosition()) / 4.0;
     }
 
-    public double getPositionWORot(){
-        return getPosition() - getRComp();
-    }
-
-    public void strafe(double angle, double inches, double directionFacingAngle, double acceleration, SyncTask task){
-
-        ElapsedTime time = new ElapsedTime();
-        System.out.println(angle + " " + inches);
-        //double ticks = convertInches2Ticks(inches);
-        double ticks = inches;
-
-
-        angle = closestRelativeAngle(angle);
-        double startAngle = imu.getAngle();
-        directionFacingAngle = findClosestAngle(directionFacingAngle, imu.getAngle());
-
-
-        resetMotors();                                              // Reset Motor Encoder
-
-        double radians = (angle + 90) * (Math.PI / 180);             // Convert to NORTH=0, to NORTH=90 like  unit circle, and also to radians
-        double yFactor = Math.sin(radians);                         // Unit Circle Y
-        double xFactor = Math.cos(radians);                         // Unit Circle X
-        double yTicks = Math.abs(yFactor * ticks);
-        double xTicks = Math.abs(xFactor * ticks);
-        double distance = Math.max(yTicks, xTicks);
-
-
-        // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
-        double normalizeToPower = 1 / Math.max(Math.abs(xFactor), Math.abs(yFactor));
-        double drive = normalizeToPower * yFactor;                 // Fill out power to a max of 1
-        double strafe = normalizeToPower * xFactor;                // Fill out power to a max of 1
-        double turn = 0;
-
-
-        currentPosition = getPosition();
-        while (getPosition() < distance && Utils.isActive()){
-
-            // Execute task synchronously
-            if (task != null) task.execute();
-
-            // Power ramping
-            double power = powerRamp(currentPosition, distance, acceleration, 1);
-
-            // PID Controller
-            double error = startAngle - imu.getAngle();
-            //turn = rotationPID.update(error) * -1;
-            //turn = error * DashConstants.learning_rate * -1;
-            setDrivePower(drive * power, strafe * power, turn, 1);
-
-            // Log and get new position
-            currentPosition = getPosition();
-
-
-            Utils.telemetry.addData("Error", error);
-            Utils.telemetry.update();
-        }
-        setAllPower(0);
-    }
-
-
     public double eurekaSub(double x){
         return x - toRadians(10) * sin(4 * x);
     }
 
-    public double eurekaPlus(double x){
+    public double correctTargetRadians(double x){
         double c1 = 7.8631064977;
         double c2 = 8;
         return x + toRadians(c2) * sin(4 * x - 0.2);
@@ -280,30 +230,32 @@ public class Mecanum implements Robot {
         double distX = dest.x - startO.x;
         double distY = dest.y - startO.y;
         double distC = sqrt(pow(distX, 2) + pow(distY, 2));
+
+        //double targetRadians = eurekaPlus(atan2(distY, distX));
         double targetRadians = atan2(distY, distX);
-        targetRadians = eurekaPlus(targetRadians);
-        double curC = 0;
 
         // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
         // The yPower and xPower should maintain the same ratio with each other
+        double power;
         double maxPower = 1;
-        double normalizeToPower = maxPower / max(abs(distX), abs(distY));
-        double px0 = normalizeToPower * distX;                  // Fill out power to a max of 1
-        double py0 = normalizeToPower * distY;                  // Fill out power to a max of 1
-        px0 = cos(targetRadians);
-        py0 = sin(targetRadians);
+        double px0 = cos(targetRadians);                  // Fill out power to a max of 1
+        double py0 = sin(targetRadians);                  // Fill out power to a max of 1
+        double normalizeToPower = maxPower / max(abs(px0), abs(py0));
+        px0 *= normalizeToPower;
+        py0 *= normalizeToPower;
         double pr0 = 0;
 
+        double curC = 0;
         while (curC < distC && Utils.isActive()){
 
             // Execute task synchronously
             if (task != null) task.execute();
 
             // Power ramping
-            //power = powerRamp(currentPosition, distance, acceleration, maxPower);
+            power = powerRamp(curC, distC, acceleration, maxPower);
 
             // PID CONTROLLER
-            //pr0 = Range.clip(rotationPID.update(90 - imu.getAngle()) * -1, -1, 1);
+            //pr0 = clip(rotationPID.update(90 - imu.getAngle()) * -1, -1, 1);
 
             // SHIFT POWER
             Point shiftedPowers = shift(px0, py0, curO.a % 360);
@@ -316,19 +268,13 @@ public class Mecanum implements Robot {
             curC = sqrt(pow(relPos.x, 2) + pow(relPos.y, 2));
 
             // SET POWER
-            setDrivePower(shiftedPowers.y, shiftedPowers.x, pr0, maxPower);
+            setDrivePower(shiftedPowers.y, shiftedPowers.x, pr0, power);
 
             // LOGGING
-            System.out.println("curX: " + curO.x);
-            System.out.println("curY: " + curO.y);
-            System.out.println("curC: " + curC);
             System.out.println("atan2(y, x): " + toDegrees(atan2(curO.y, curO.x)));
-            System.out.println("Angle: " + imu.getAngle());
-
-            Utils.telemetry.addData("curX", curO.x);
-            Utils.telemetry.addData("curY", curO.y);
+            Utils.telemetry.addData("Power", power);
             Utils.telemetry.addData("curC", curC);
-            Utils.telemetry.addData("curA", imu.getAngle());
+            Utils.telemetry.addData("distC", distC);
             Utils.telemetry.update();
         }
         odom.update(curO);
@@ -338,66 +284,11 @@ public class Mecanum implements Robot {
     /**
      * @param angle
      */
-    public void linearStrafe(double angle, double ticks, double acceleration, SyncTask task){
+    public void linearStrafe(double angle, double distance, double acceleration, SyncTask task) {
 
-        // Initialize starter variables
-        resetMotors();
-        //double ticks = convertInches2Ticks(inches);
-
-        // Find facing angle
-        angle = closestRelativeAngle(angle);
-
-        // Convert to NORTH=0, to NORTH=90 like  unit circle, and also to radians
-        double radians = (angle + 90) * (PI / 180) * -1;
-        double yFactor = sin(radians);
-        double xFactor = cos(radians);
-        double cTicks = sqrt(pow(xFactor, 2) + pow(yFactor, 2));
-
-        // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
-        // The yPower and xPower should maintain the same ratio with eachother
-        double normalizeToPower = 1 ;// max(abs(xFactor), abs(yFactor));
-        double y0 = normalizeToPower * yFactor;                 // Fill out power to a max of 1
-        double x0 = normalizeToPower * xFactor;                // Fill out power to a max of 1
-        double turn = 0;
-        double power = 1;
-
-        double yPos = 0; double xPos = 0; double cPos = 0; double rPos = 0;
-
-        while (cPos < ticks && Utils.isActive()){
-
-            // Execute task synchronously
-            if (task != null) task.execute();
-
-            // Turning
-            Point m = shift(x0, y0, imu.getAngle() % 360);
-
-            // Power ramping
-            //power = powerRamp(currentPosition, distance, acceleration, 1);
-
-            // PID Controller
-            //turn = Range.clip(rotationPID.update(90 - imu.getAngle()) * -1, -1, 1);
-            Point m1 = unShift(getXComp(), getYComp(), imu.getAngle() % 360);
-            rPos = getRComp();
-            xPos = m1.x;
-            yPos = m1.y;
-            cPos = sqrt(pow(xPos, 2) + pow(yPos, 2));
-            System.out.println("Position: " + getPosition());
-            System.out.println("xPos: " + xPos);
-            System.out.println("yPos: " + yPos);
-            System.out.println("cPos: " + cPos);
-            System.out.println("rPos: " + rPos);
-            System.out.println("Angle: " + imu.getAngle());
-            Utils.telemetry.addData("xPos", xPos);
-            Utils.telemetry.addData("yPos", yPos);
-            Utils.telemetry.addData("cPos", cPos);
-            Utils.telemetry.addData("rPos", rPos);
-            Utils.telemetry.addData("Angle", imu.getAngle());
-            Utils.telemetry.update();
-
-            // Set Movement Power
-            setDrivePower(m.y, m.x, turn, power);
-        }
-        setAllPower(0);
+        double r = angle * PI / 180.0;
+        Point dest = new Point(distance * cos(r), distance * sin(r) * -1);
+        linearStrafe(dest, acceleration, task);
     }
 
     public void iterativeStrafe(double angle, double inches, double acceleration, SyncTask task){

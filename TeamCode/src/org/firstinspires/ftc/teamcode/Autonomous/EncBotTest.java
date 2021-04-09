@@ -1,9 +1,11 @@
 package org.firstinspires.ftc.teamcode.Autonomous;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import org.firstinspires.ftc.teamcode.Z.EncBot;
 
+@Disabled
 @Autonomous(name="EncBotTest", group="Autonomous Linear Opmode")
 public class EncBotTest extends LinearOpMode {
     @Override
