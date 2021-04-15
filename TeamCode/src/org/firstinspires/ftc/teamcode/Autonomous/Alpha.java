@@ -12,8 +12,8 @@ import org.firstinspires.ftc.teamcode.Navigation.Odometry;
 import org.firstinspires.ftc.teamcode.Utilities.Point;
 import org.firstinspires.ftc.teamcode.Utilities.Utils;
 
-import static java.lang.StrictMath.*;
-import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.DOWN;
+import static org.firstinspires.ftc.teamcode.Autonomous.Alpha.State.*;
+import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.Input.*;
 
 
@@ -42,10 +42,10 @@ public class Alpha extends LinearOpMode {
         odom = new Odometry(0, 0, 0);
     }
 
-    public Point getPoint(double a, double d){
-        double r = a * PI / 180.0;
-        return new Point(d * cos(r), d * sin(r));
+    public enum State {
+        HOME, A, RING_STACK
     }
+    public State state = HOME;
 
     //@RequiresApi(api = Build.VERSION_CODES.N)
     @Override
@@ -58,9 +58,31 @@ public class Alpha extends LinearOpMode {
         Point ringStack =   new Point(2350, 2500);
         Point A =           new Point(1200, 5800);
 
-
+        /*
         robot.linearStrafe(home, 0.1, null);
-        robot.linearStrafe(A, 0.1, null);
-        System.out.println(robot.imu.getAngle());
+        robot.linearStrafe(90, 5000, 0.1, null);
+        robot.linearStrafe(0, 5000, 0.1, null);
+        robot.linearStrafe(270, 5000, 0.1, null);
+        robot.linearStrafe(45, 5000, 0.1, null);
+         */
+        //System.out.println(robot.imu.getAngle());
+
+        while (opModeIsActive()){
+
+            switch (state){
+
+                case HOME:
+                    robot.iterativeStrafe(home, 0.1);
+                    if (robot.isStrafeFinished) state = State.A;
+                    break;
+
+                case A:
+                    robot.iterativeStrafe(A, 0.1);
+                    if (robot.isStrafeFinished) state = State.RING_STACK;
+                    break;
+            }
+
+
+
     }
 }
