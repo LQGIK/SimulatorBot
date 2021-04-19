@@ -54,22 +54,26 @@ public class Alpha extends LinearOpMode {
         initialize();
         waitForStart();
 
-        Point home =        new Point(1300, 0);
-        Point ringStack =   new Point(2350, 2500);
-        Point A =           new Point(1200, 5800);
+        Point home =        new Point(106.19, 0);
+        Point ringStack =   new Point(154.805, 161.75);
+        Point A =           new Point(101.56, 314.54);
 
-        /*
-        robot.linearStrafe(home, 0.1, null);
-        robot.linearStrafe(90, 5000, 0.1, null);
-        robot.linearStrafe(0, 5000, 0.1, null);
-        robot.linearStrafe(270, 5000, 0.1, null);
-        robot.linearStrafe(45, 5000, 0.1, null);
-         */
+        System.out.println("START: " + robot.odom.getOrientation());
+
+        robot.linearStrafe(home, 0.01, null);
+        robot.linearStrafe(90, 277.5, 0.1, null);
+        robot.linearStrafe(0, 277.5, 0.1, null);
+        robot.linearStrafe(270, 277.5, 0.1 , null);
+
+        System.out.println(robot.odom.getOrientation());
+
+        robot.linearStrafe(home, 0.05, null);
         //System.out.println(robot.imu.getAngle());
 
-        while (opModeIsActive()){
+        /*
+        while (opModeIsActive()) {
 
-            switch (state){
+            switch (state) {
 
                 case HOME:
                     robot.iterativeStrafe(home, 0.1);
@@ -81,8 +85,7 @@ public class Alpha extends LinearOpMode {
                     if (robot.isStrafeFinished) state = State.RING_STACK;
                     break;
             }
-
-
-
+        }
+         */
     }
 }

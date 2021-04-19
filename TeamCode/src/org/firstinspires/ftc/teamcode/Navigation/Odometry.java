@@ -33,4 +33,16 @@ public class Odometry {
     public Orientation getOrientation(){
         return new Orientation(lastX, lastY, lastA);
     }
+
+    @Override
+    public String toString() {
+        return "Odometry{" +
+                "startX=" + startX +
+                ", startY=" + startY +
+                ", startA=" + startA +
+                ", lastX=" + lastX +
+                ", lastY=" + lastY +
+                ", lastA=" + lastA +
+                '}';
+    }
 }

@@ -24,7 +24,7 @@ import static java.lang.StrictMath.*;
 import static java.lang.Thread.sleep;
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.PSState.END;
-import static org.firstinspires.ftc.teamcode.Utilities.Utils.convertInches2Ticks;
+import static org.firstinspires.ftc.teamcode.Utilities.Utils.*;
 
 
 public class Mecanum implements Robot {
@@ -138,28 +138,20 @@ public class Mecanum implements Robot {
         return StrictMath.abs(simpleTargetDelta) <= StrictMath.abs(alternateTargetDelta) ? currentAngle - simpleTargetDelta : currentAngle - alternateTargetDelta;
     }
 
-
-    /**
-     * @param position
-     * @param distance
-     * @param acceleration
-     * @return
-     */
-    public static double powerRamp(double position, double distance, double acceleration, double maxVelocity){
+    public static double powerRamp(double position, double distance, double acceleration){
         /*
          *  The piece wise function has domain restriction [0, inf] and range restriction [0, 1]
          *  Simply returns a proportional constant
          */
 
-
-        // Constant to map power to [0, 1]
-        double normFactor = maxVelocity / Math.sqrt(acceleration * distance);
+        double a = 1;
+        double relativePosition = (position / distance) * 10; // Mapped on [0, 10]
 
         // Modeling a piece wise of power as a function of distance
-        double p1       = normFactor * Math.sqrt(acceleration * position);
-        double p2       = maxVelocity;
-        double p3       = normFactor * (Math.sqrt(acceleration * (distance - position)));
-        double power    = Math.min(Math.min(p1, p2), p3) + 0.1;
+        double p1       = sqrt(acceleration * relativePosition);
+        double p2       = 1;
+        double p3       = (sqrt(acceleration * (10 - relativePosition)));
+        double power    = min(min(p1, p2), p3) + 0.1;
         power           = clip(power, 0.1, 1);
 
         return power;
@@ -220,7 +212,8 @@ public class Mecanum implements Robot {
 
         // Initialize starter variables
         resetMotors();
-        //double ticks = convertInches2Ticks(inches);
+        dest.x = centimeters2Ticks(dest.x);
+        dest.y = centimeters2Ticks(dest.y);
 
         // Convert to NORTH=0, to NORTH=90 like  unit circle, and also to radians
         Orientation startO = odom.getOrientation();
@@ -250,7 +243,7 @@ public class Mecanum implements Robot {
             if (task != null) task.execute();
 
             // Power ramping
-            power = powerRamp(curC, distC, acceleration, maxPower);
+            power = powerRamp(curC, distC, acceleration);
 
             // PID CONTROLLER
             //pr0 = clip(rotationPID.update(90 - imu.getAngle()) * -1, -1, 1);
@@ -269,7 +262,7 @@ public class Mecanum implements Robot {
             setDrivePower(shiftedPowers.y, shiftedPowers.x, pr0, power);
 
             // LOGGING
-            System.out.println("atan2(y, x): " + toDegrees(atan2(curO.y, curO.x)));
+            //System.out.println("atan2(y, x): " + toDegrees(atan2(curO.y, curO.x)));
             Utils.telemetry.addData("Power", power);
             Utils.telemetry.addData("curC", curC);
             Utils.telemetry.addData("distC", distC);
@@ -286,6 +279,8 @@ public class Mecanum implements Robot {
 
         double r = angle * PI / 180.0;
         Orientation curO = odom.getOrientation();
+        curO.x = ticks2Centimeters(curO.x);
+        curO.y = ticks2Centimeters(curO.y);
         Point dest = new Point(distance * cos(r) + curO.x, ((distance * sin(r)) + curO.y));
         linearStrafe(dest, acceleration, task);
     }
@@ -333,7 +328,7 @@ public class Mecanum implements Robot {
         double curC = sqrt(pow(relPos.x, 2) + pow(relPos.y, 2));
 
         // Power ramping
-        double power = powerRamp(curC, distC, acceleration, 1);
+        double power = powerRamp(curC, distC, acceleration);
 
 
         if (curC < distC && Utils.isActive()) {
@@ -385,7 +380,7 @@ public class Mecanum implements Robot {
 
             //              Power Ramping            //
             powerRampPosition = MathUtils.map(current_angle, startAngle, actual_target_angle, 0, startDeltaAngle);
-            power = powerRamp(powerRampPosition, startDeltaAngle, acceleration, 1);
+            power = powerRamp(powerRampPosition, startDeltaAngle, acceleration);
 
             //        Set Power                 //
             setDrivePower(0, 0, turn_direction, power);

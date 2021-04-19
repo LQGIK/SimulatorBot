@@ -45,6 +45,15 @@ public class Utils {
     }
 
 
+    public static double centimeters2Ticks(double centimeters){
+        return (21.6 * centimeters) - 991;
+    }
+
+    public static double ticks2Centimeters(double ticks){
+        return (0.0463 * ticks) + 46;
+    }
+
+
     public static double convertInches2Ticks(double ticks){
         return (ticks - 4.38) / 0.0207; // Calculated using desmos
     }
