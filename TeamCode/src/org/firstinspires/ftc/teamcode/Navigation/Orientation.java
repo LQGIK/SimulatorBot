@@ -10,6 +10,6 @@ public class Orientation {
 
     @Override
     public String toString(){
-        return new String("X: " + x + "\nY: " + y + "\nA" + a);
+        return new String("X: " + x + "\nY: " + y + "\nA: " + a);
     }
 }

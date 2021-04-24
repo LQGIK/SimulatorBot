@@ -5,6 +5,7 @@ import org.firstinspires.ftc.teamcode.Utilities.Point;
 
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.shift;
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.unShift;
+import static org.firstinspires.ftc.teamcode.Utilities.Utils.centimeters2Ticks;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MecanumTest {
@@ -25,11 +26,28 @@ class MecanumTest {
     }
 
     @org.junit.jupiter.api.Test
+    void powerRampTest() {
+        double c = 800;
+        double d = 900;
+        double a = 0.1;
+        double p = Mecanum.powerRamp(c, d, a);
+        assertEquals(p, 0.33, 0.01);
+    }
+
+    @org.junit.jupiter.api.Test
+    void convert2TicksTest() {
+        double cm = 100;
+        double ticks = centimeters2Ticks(cm);
+        assertEquals(1553, ticks);
+    }
+
+        @org.junit.jupiter.api.Test
     void odomTest() {
 
         Point home = new Point(0, 0);
-        Point loc30 = new Point(4330, 2500);
-        Orientation startO = new Orientation(4330, 2500, 90);
+        Point up = new Point(0, 100);
+
+
 
 
 

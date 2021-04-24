@@ -144,14 +144,13 @@ public class Mecanum implements Robot {
          *  Simply returns a proportional constant
          */
 
-        double a = 1;
         double relativePosition = (position / distance) * 10; // Mapped on [0, 10]
 
         // Modeling a piece wise of power as a function of distance
         double p1       = sqrt(acceleration * relativePosition);
         double p2       = 1;
         double p3       = (sqrt(acceleration * (10 - relativePosition)));
-        double power    = min(min(p1, p2), p3) + 0.1;
+        double power    = min(min(p1, p2), p3);
         power           = clip(power, 0.1, 1);
 
         return power;
@@ -179,6 +178,7 @@ public class Mecanum implements Robot {
         double r = toRadians(shiftAngle);
         double unShiftedY = ((x * cos(r)) - (y * sin(r)))   /  (pow(cos(r), 2) + pow(sin(r), 2));
         double unShiftedX = (x - (unShiftedY * cos(r))) / sin(r);
+        if (sin(r) == 0) unShiftedX = 0;
         return new Point(unShiftedX, unShiftedY);
     }
 
@@ -212,8 +212,8 @@ public class Mecanum implements Robot {
 
         // Initialize starter variables
         resetMotors();
-        dest.x = centimeters2Ticks(dest.x);
-        dest.y = centimeters2Ticks(dest.y);
+        dest.x = (dest.x > 0) ? centimeters2Ticks(dest.x) : -centimeters2Ticks(abs(dest.x));
+        dest.y = (dest.y > 0) ? centimeters2Ticks(dest.y): -centimeters2Ticks(abs(dest.y));
 
         // Convert to NORTH=0, to NORTH=90 like  unit circle, and also to radians
         Orientation startO = odom.getOrientation();
@@ -222,19 +222,23 @@ public class Mecanum implements Robot {
         double distY = dest.y - startO.y;
         double distC = sqrt(pow(distX, 2) + pow(distY, 2));
 
+        // Calculate strafe angle
         //double targetRadians = eurekaPlus(atan2(distY, distX));
-        double targetRadians = atan2(distY, distX);
+        double strafeAngle = atan2(distY, distX);
 
         // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
         // The yPower and xPower should maintain the same ratio with each other
         double power;
-        double maxPower = 1;
-        double px0 = cos(targetRadians);                  // Fill out power to a max of 1
-        double py0 = sin(targetRadians) * -1;                  // Fill out power to a max of 1
-        double normalizeToPower = maxPower / max(abs(px0), abs(py0));
-        px0 *= normalizeToPower;
-        py0 *= normalizeToPower;
+        double px0 = cos(strafeAngle);                        // Fill out power to a max of 1
+        double py0 = sin(strafeAngle);                   // Fill out power to a max of 1
         double pr0 = 0;
+
+        print("DISTX: " + distX);
+        print("DISTY: " + distY);
+        print("PX: " + px0);
+        print("PY: " + py0);
+        print("StrafeAngle: " + strafeAngle);
+        print("\n");
 
         double curC = 0;
         while (curC < distC && Utils.isActive()){
@@ -246,7 +250,7 @@ public class Mecanum implements Robot {
             power = powerRamp(curC, distC, acceleration);
 
             // PID CONTROLLER
-            //pr0 = clip(rotationPID.update(90 - imu.getAngle()) * -1, -1, 1);
+            pr0 = clip(rotationPID.update(startO.a - imu.getAngle()) * -1, -1, 1);
 
             // SHIFT POWER
             Point shiftedPowers = shift(px0, py0, curO.a % 360);
@@ -271,20 +275,61 @@ public class Mecanum implements Robot {
         odom.update(curO);
         setAllPower(0);
     }
+    public void linearStrafe(double angle, double cm, double acceleration, SyncTask task) {
 
-    /**
-     * @param angle
-     */
-    public void linearStrafe(double angle, double distance, double acceleration, SyncTask task) {
+        resetMotors();
 
-        double r = angle * PI / 180.0;
+        double strafeAngle = toRadians(angle);
+        double ticks = centimeters2Ticks(cm);
+
+        Orientation startO = odom.getOrientation();
         Orientation curO = odom.getOrientation();
-        curO.x = ticks2Centimeters(curO.x);
-        curO.y = ticks2Centimeters(curO.y);
-        Point dest = new Point(distance * cos(r) + curO.x, ((distance * sin(r)) + curO.y));
-        linearStrafe(dest, acceleration, task);
-    }
 
+        double power;
+        double px0 = cos(strafeAngle);
+        double py0 = -sin(strafeAngle);
+        double pr0 = 0;
+
+        print("PX: " + px0);
+        print("PY: " + py0);
+        print("StrafeAngle: " + strafeAngle);
+        print("\n");
+
+        double curC = 0;
+        while (curC < ticks && isActive()){
+
+            // Execute task synchronously
+            if (task != null) task.execute();
+
+            // Power ramping
+            power = powerRamp(curC, ticks, acceleration);
+
+            // PID CONTROLLER
+            pr0 = clip(rotationPID.update(startO.a - imu.getAngle()) * -1, -1, 1);
+
+            // SHIFT POWER
+            Point shiftedPowers = shift(px0, py0, curO.a % 360);
+
+            // Un-shift X and Y distances traveled
+            Point relPos = unShift(getXComp(), getYComp(), curO.a % 360);
+            curO.x = relPos.x + startO.x;
+            curO.y = relPos.y + startO.y;
+            curO.a = imu.getAngle();
+            curC = sqrt(pow(relPos.x, 2) + pow(relPos.y, 2));
+
+            // SET POWER
+            setDrivePower(shiftedPowers.y, shiftedPowers.x, pr0, power);
+
+            // LOGGING
+            //System.out.println("atan2(y, x): " + toDegrees(atan2(curO.y, curO.x)));
+            Utils.telemetry.addData("Power", power);
+            Utils.telemetry.addData("curC", curC);
+            Utils.telemetry.addData("Ticks", ticks);
+            Utils.telemetry.update();
+        }
+        odom.update(curO);
+        setAllPower(0);
+    }
     /**
      * @param angle
      */

@@ -6,6 +6,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
+import static java.lang.Math.pow;
+
 public class Utils {
 
     public static HardwareMap hardwareMap;
@@ -45,8 +47,8 @@ public class Utils {
     }
 
 
-    public static double centimeters2Ticks(double centimeters){
-        return (21.6 * centimeters) - 991;
+    public static double centimeters2Ticks(double c){
+        return (0.118 * pow(c, 2)) + (3.66 * c) + 7;
     }
 
     public static double ticks2Centimeters(double ticks){

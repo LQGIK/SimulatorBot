@@ -15,6 +15,7 @@ import org.firstinspires.ftc.teamcode.Utilities.Utils;
 import static org.firstinspires.ftc.teamcode.Autonomous.Alpha.State.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.ButtonState.*;
 import static org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls.Input.*;
+import static org.firstinspires.ftc.teamcode.Utilities.Utils.print;
 
 
 @Autonomous(name="AlphaAuto", group="Autonomous Linear Opmode")
@@ -58,34 +59,14 @@ public class Alpha extends LinearOpMode {
         Point ringStack =   new Point(154.805, 161.75);
         Point A =           new Point(101.56, 314.54);
 
-        System.out.println("START: " + robot.odom.getOrientation());
+        print("START: " + robot.odom.getOrientation());
+        print("\n");
 
-        robot.linearStrafe(home, 0.01, null);
-        robot.linearStrafe(90, 277.5, 0.1, null);
-        robot.linearStrafe(0, 277.5, 0.1, null);
-        robot.linearStrafe(270, 277.5, 0.1 , null);
+        robot.linearStrafe(90, 100, 0.1, null);
+        robot.linearStrafe(270, 100, 0.1, null);
 
         System.out.println(robot.odom.getOrientation());
+        print("\n");
 
-        robot.linearStrafe(home, 0.05, null);
-        //System.out.println(robot.imu.getAngle());
-
-        /*
-        while (opModeIsActive()) {
-
-            switch (state) {
-
-                case HOME:
-                    robot.iterativeStrafe(home, 0.1);
-                    if (robot.isStrafeFinished) state = State.A;
-                    break;
-
-                case A:
-                    robot.iterativeStrafe(A, 0.1);
-                    if (robot.isStrafeFinished) state = State.RING_STACK;
-                    break;
-            }
-        }
-         */
-    }
+   }
 }
