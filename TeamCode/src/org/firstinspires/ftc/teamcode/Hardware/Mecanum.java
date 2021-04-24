@@ -6,7 +6,6 @@ package org.firstinspires.ftc.teamcode.Hardware;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
-import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.teamcode.Hardware.Sensors.DistanceOdom;
 import org.firstinspires.ftc.teamcode.Hardware.Sensors.IMU;
 import org.firstinspires.ftc.teamcode.Navigation.Odometry;
@@ -14,10 +13,9 @@ import org.firstinspires.ftc.teamcode.Navigation.Orientation;
 import org.firstinspires.ftc.teamcode.Utilities.DashConstants.Dash_Movement;
 import org.firstinspires.ftc.teamcode.Utilities.MathUtils;
 import org.firstinspires.ftc.teamcode.Utilities.PID.PID;
-import org.firstinspires.ftc.teamcode.Utilities.Point;
+import org.firstinspires.ftc.teamcode.Navigation.Point;
 import org.firstinspires.ftc.teamcode.Utilities.SyncTask;
 import org.firstinspires.ftc.teamcode.Utilities.Utils;
-
 import static com.qualcomm.robotcore.util.Range.clip;
 import static java.lang.Math.floorMod;
 import static java.lang.StrictMath.*;
@@ -66,9 +64,7 @@ public class Mecanum implements Robot {
         odom = new Odometry(0, 0, imu.getAngle());
     }
 
-    /**
-     * (Re)Init Motors
-     */
+
     public void resetMotors(){
         fr.setDirection(DcMotorSimple.Direction.FORWARD);
         fl.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -86,16 +82,10 @@ public class Mecanum implements Robot {
         br.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
     }
 
-    /**
-     * @return average encoder position
-     */
     public double getPosition(){
         return (Math.abs(fl.getCurrentPosition()) + Math.abs(fr.getCurrentPosition()) + Math.abs(bl.getCurrentPosition()) + Math.abs(br.getCurrentPosition())) / 4.0;
     }
 
-    /**
-     * @param power
-     */
     @Override
     public void setAllPower(double power){
         fl.setPower(power);
@@ -104,11 +94,6 @@ public class Mecanum implements Robot {
         br.setPower(power);
     }
 
-    /**
-     * @param drive
-     * @param strafe
-     * @param turn
-     */
     public void setDrivePower(double drive, double strafe, double turn, double velocity) {
         fr.setPower((drive - strafe - turn) * velocity);
         fl.setPower((drive + strafe + turn) * velocity);
@@ -116,21 +101,12 @@ public class Mecanum implements Robot {
         bl.setPower((drive - strafe + turn) * velocity);
     }
 
-    /**
-     * @param targetAngle
-     * @return
-     */
     public double closestRelativeAngle(double targetAngle){
         double simpleTargetDelta = floorMod(Math.round(((360 - targetAngle) + imu.getAngle()) * 1e6), Math.round(360.000 * 1e6)) / 1e6;
         double alternateTargetDelta = -1 * (360 - simpleTargetDelta);
         return StrictMath.abs(simpleTargetDelta) >= StrictMath.abs(alternateTargetDelta) ? 0 - simpleTargetDelta : 0 - alternateTargetDelta;
     }
 
-    /**
-     * @param targetAngle
-     * @param currentAngle
-     * @return
-     */
     //@RequiresApi(api = Build.VERSION_CODES.N)
     public static double findClosestAngle(double targetAngle, double currentAngle){
         double simpleTargetDelta = floorMod(Math.round(((360 - targetAngle) + currentAngle) * 1e6), Math.round(360.000 * 1e6)) / 1e6;
@@ -144,42 +120,30 @@ public class Mecanum implements Robot {
          *  Simply returns a proportional constant
          */
 
-        double relativePosition = (position / distance) * 10; // Mapped on [0, 10]
+        double relativePosition = abs((position / distance)) * 10; // Mapped on [0, 10]
 
         // Modeling a piece wise of power as a function of distance
         double p1       = sqrt(acceleration * relativePosition);
         double p2       = 1;
-        double p3       = (sqrt(acceleration * (10 - relativePosition)));
+        double p3       = (sqrt(acceleration * abs(10 - relativePosition)));
         double power    = min(min(p1, p2), p3);
         power           = clip(power, 0.1, 1);
 
         return power;
     }
 
-    private double powerRamp(double percentageDistance, double a){
-
-        double p1 = sqrt(a * percentageDistance);
-        double p2 = 1;
-        double p3 = sqrt(a * (1 - percentageDistance));
-
-        double p = min(min(p1, p2), p3);
-        p = clip(p, 0.1, 1);
-
-        return p;
+    public static Orientation shift(double x, double y, double shiftAngle){
+        double shiftedX = (x * sin(toRadians(shiftAngle))) + (y * cos(toRadians(shiftAngle)));
+        double shiftedY = (x * cos(toRadians(shiftAngle))) - (y * sin(toRadians(shiftAngle)));
+        return new Orientation(shiftedX, shiftedY, shiftAngle);
     }
 
-    public static Point shift(double x, double y, double shiftAngle){
-        double shiftedX = (x * Math.sin(toRadians(shiftAngle))) + (y * cos(toRadians(shiftAngle)));
-        double shiftedY = (x * Math.cos(toRadians(shiftAngle))) - (y * sin(toRadians(shiftAngle)));
-        return new Point(shiftedX, shiftedY);
-    }
-
-    public static Point unShift(double x, double y, double shiftAngle){
+    public static Orientation unShift(double x, double y, double shiftAngle){
         double r = toRadians(shiftAngle);
         double unShiftedY = ((x * cos(r)) - (y * sin(r)))   /  (pow(cos(r), 2) + pow(sin(r), 2));
         double unShiftedX = (x - (unShiftedY * cos(r))) / sin(r);
         if (sin(r) == 0) unShiftedX = 0;
-        return new Point(unShiftedX, unShiftedY);
+        return new Orientation(unShiftedX, unShiftedY, shiftAngle);
     }
 
     public double getRComp(){
@@ -195,7 +159,7 @@ public class Mecanum implements Robot {
     }
 
     public double getYComp(){
-        return (fr.getCurrentPosition() + fl.getCurrentPosition() + br.getCurrentPosition() + bl.getCurrentPosition()) / -4.0;
+        return (fr.getCurrentPosition() + fl.getCurrentPosition() + br.getCurrentPosition() + bl.getCurrentPosition()) / 4.0;
     }
 
     public double eurekaSub(double x){
@@ -208,17 +172,19 @@ public class Mecanum implements Robot {
         return x + toRadians(c2) * sin(4 * x - 0.2);
     }
 
-
-    public void linearStrafe(org.firstinspires.ftc.teamcode.Navigation.Point dest, double acceleration, SyncTask task){
+    public void linearStrafe(Point dest, double acceleration, SyncTask task){
 
         // Initialize starter variables
         resetMotors();
+
+
         dest.y *= -1;     // NO IDEA WHY
-        dest.x = (dest.x > 0) ? centimeters2Ticks(dest.x) : -centimeters2Ticks(abs(dest.x));
-        dest.y = (dest.y > 0) ? centimeters2Ticks(dest.y): -centimeters2Ticks(abs(dest.y));
+        dest.x = (dest.x > 0) ? cm2Ticks(dest.x) : -cm2Ticks(abs(dest.x));
+        dest.y = (dest.y > 0) ? cm2Ticks(dest.y): -cm2Ticks(abs(dest.y));
 
         dest.x = (dest.x == 7) ? 0 : dest.x;
         dest.y = (dest.y == 7) ? 0 : dest.y;
+
 
         // Convert to NORTH=0, to NORTH=90 like  unit circle, and also to radians
         Orientation startO = odom.getOrientation();
@@ -258,10 +224,10 @@ public class Mecanum implements Robot {
             pr0 = clip(rotationPID.update(startO.a - imu.getAngle()) * -1, -1, 1);
 
             // SHIFT POWER
-            Point shiftedPowers = shift(px0, py0, curO.a % 360);
+            Orientation shiftedPowers = shift(px0, py0, curO.a % 360);
 
             // Un-shift X and Y distances traveled
-            Point relPos = unShift(getXComp(), getYComp(), curO.a % 360);
+            Orientation relPos = unShift(getXComp(), getYComp(), curO.a % 360);
             curO.x = relPos.x + startO.x;
             curO.y = relPos.y + startO.y;
             curO.a = imu.getAngle();
@@ -282,61 +248,79 @@ public class Mecanum implements Robot {
     }
 
 
-    public void linearStrafe(double angle, double cm, double acceleration, SyncTask task) {
 
+
+
+
+    public void linearStrafe(double angle, double cm, double acceleration) {
+
+        // Reset encoders
         resetMotors();
 
-        double strafeAngle = toRadians(angle);
-        double ticks = centimeters2Ticks(cm);
+        // Calculate distances
+        double ticks        = cm2Ticks(cm);
+        double strafeAngle  = toRadians(angle);
 
-        Orientation startO = odom.getOrientation();
-        Orientation curO = odom.getOrientation();
+        // Retrieve current positions
+        Orientation startO  = odom.getOrientation();
+        Orientation curO    = odom.getOrientation();
+        Orientation relO    = new Orientation(0, 0, 0);
 
-        double power;
-        double px0 = cos(strafeAngle);
-        double py0 = -sin(strafeAngle);
-        double pr0 = 0;
+        // Calculate x & y distances
+        double distX = ticks * cos(strafeAngle);
+        double distY = ticks * sin(strafeAngle);
 
-        print("PX: " + px0);
-        print("PY: " + py0);
-        print("StrafeAngle: " + strafeAngle);
-        print("\n");
+        // Calculate x & y errors
+        double xError = distX - relO.x;
+        double yError = distY - relO.y;
 
-        double curC = 0;
-        while (curC < ticks && isActive()){
-
-            // Execute task synchronously
-            if (task != null) task.execute();
-
-            // Power ramping
-            power = powerRamp(curC, ticks, acceleration);
-
-            // PID CONTROLLER
-            pr0 = clip(rotationPID.update(startO.a - imu.getAngle()) * -1, -1, 1);
-
-            // SHIFT POWER
-            Point shiftedPowers = shift(px0, py0, curO.a % 360);
+        // Correct the distances
+        double MOE = 5;
+        while (abs(xError) > MOE || abs(yError) > MOE){
 
             // Un-shift X and Y distances traveled
-            Point relPos = unShift(getXComp(), getYComp(), curO.a % 360);
-            curO.x = relPos.x + startO.x;
-            curO.y = relPos.y + startO.y;
-            curO.a = imu.getAngle();
-            curC = sqrt(pow(relPos.x, 2) + pow(relPos.y, 2));
+            relO = unShift(getXComp(), getYComp(), imu.getAngle() % 360);
 
-            // SET POWER
-            setDrivePower(shiftedPowers.y, shiftedPowers.x, pr0, power);
+            // Update Errors
+            xError = distX - relO.x;
+            yError = distY - relO.y;
 
-            // LOGGING
-            //System.out.println("atan2(y, x): " + toDegrees(atan2(curO.y, curO.x)));
-            Utils.telemetry.addData("Power", power);
-            Utils.telemetry.addData("curC", curC);
-            Utils.telemetry.addData("Ticks", ticks);
+            // Calculate Powers
+            double px = (xError > 0) ? 1 : -1;
+            double py = (yError > 0) ? 1 : -1;
+            double pr = 0; //clip(rotationPID.update(startO.a - relO.a) * -1, -1, 1);
+
+            // Ramp x and y powers accordingly
+            px *= powerRamp(abs(relO.x), abs(distX), acceleration);
+            py *= powerRamp(abs(relO.y), abs(distY), acceleration);
+
+            // Shift the powers
+            Orientation shiftedPowers = shift(px, py, relO.a % 360);
+
+            // Set Drive Power
+            setDrivePower(shiftedPowers.y, shiftedPowers.x, pr, 1);
+
+            // Update the robot's current position
+            curO.x = relO.x + startO.x;
+            curO.y = relO.y + startO.y;
+            curO.a = relO.a;
+
+            // Logging
+            Utils.telemetry.addLine("");
+            Utils.telemetry.addData("PX: ", px);
+            Utils.telemetry.addData("PY: ", py);
+            Utils.telemetry.addData("X: ", relO.x);
+            Utils.telemetry.addData("Y: ", relO.y);
             Utils.telemetry.update();
         }
-        odom.update(curO);
         setAllPower(0);
+        odom.update(curO);
     }
+
+
+
+
+
     /**
      * @param angle
      */
@@ -370,10 +354,10 @@ public class Mecanum implements Robot {
         py0 *= normalizeToPower;
 
         // SHIFT POWER
-        Point shiftedPowers = shift(px0, py0, curO.a % 360);
+        Orientation shiftedPowers = shift(px0, py0, curO.a % 360);
 
         // Un-shift X and Y distances traveled
-        Point relPos = unShift(getXComp(), getYComp(), curO.a % 360);
+        Orientation relPos = unShift(getXComp(), getYComp(), curO.a % 360);
         curO.x = relPos.x + startO.x;
         curO.y = relPos.y + startO.y;
         curO.a = imu.getAngle();

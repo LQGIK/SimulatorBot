@@ -47,7 +47,7 @@ public class Utils {
     }
 
 
-    public static double centimeters2Ticks(double c){
+    public static double cm2Ticks(double c){
         return (0.118 * pow(c, 2)) + (3.66 * c) + 7;
     }
 

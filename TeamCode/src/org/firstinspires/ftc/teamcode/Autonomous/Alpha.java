@@ -55,27 +55,12 @@ public class Alpha extends LinearOpMode {
         initialize();
         waitForStart();
 
-        Point home =        new Point(106.19, 0);
-        Point ringStack =   new Point(154.805, 161.75);
-        Point A =           new Point(101.56, 314.54);
-
         print("START: " + robot.odom.getOrientation());
         print("\n");
 
-        robot.linearStrafe(new Point(0, 100), 0.1, null);
-        robot.linearStrafe(new Point(0, 0), 0.1, null);
+        robot.linearStrafe(95, 100, 0.1);
 
-        System.out.println("1\n" + robot.odom.getOrientation());
+        print("END: " + robot.odom.getOrientation());
         print("\n");
-
-        robot.linearStrafe(0, 100, 0.1, null);
-
-        System.out.println("2\n" + robot.odom.getOrientation());
-        print("\n");
-
-        robot.linearStrafe(new Point(0, 0), 0.1, null);
-
-        System.out.println("3\n" + robot.odom.getOrientation());
-        print("\n");
-   }
+    }
 }

@@ -5,7 +5,7 @@ import org.firstinspires.ftc.teamcode.Utilities.Point;
 
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.shift;
 import static org.firstinspires.ftc.teamcode.Hardware.Mecanum.unShift;
-import static org.firstinspires.ftc.teamcode.Utilities.Utils.centimeters2Ticks;
+import static org.firstinspires.ftc.teamcode.Utilities.Utils.cm2Ticks;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MecanumTest {
@@ -15,10 +15,10 @@ class MecanumTest {
         double x = 10;
         double y = 10;
         double r = 380 % 360;
-        Point m = shift(x, y, r);
+        Orientation m = shift(x, y, r);
         double xPrime = m.x;
         double yPrime = m.y;
-        Point m1 = unShift(xPrime, yPrime, r);
+        Orientation m1 = unShift(xPrime, yPrime, r);
         double xRevert = m1.x;
         double yRevert = m1.y;
         assertEquals(xRevert, x, 0.01);
@@ -37,7 +37,7 @@ class MecanumTest {
     @org.junit.jupiter.api.Test
     void convert2TicksTest() {
         double cm = 100;
-        double ticks = centimeters2Ticks(cm);
+        double ticks = cm2Ticks(cm);
         assertEquals(1553, ticks);
     }
 

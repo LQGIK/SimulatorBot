@@ -17,13 +17,6 @@ public class Odometry {
         this.lastA = startA;
     }
 
-    public void update(double distance, double angle){
-        double shifted_angle = angle + 90;
-        lastX = distance * cos(shifted_angle);
-        lastY = distance * sin(shifted_angle);
-        lastA = angle;
-    }
-
     public void update(Orientation c){
         lastX = c.x;
         lastY = c.y;
