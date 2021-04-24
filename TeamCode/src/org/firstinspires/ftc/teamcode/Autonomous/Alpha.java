@@ -9,7 +9,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.teamcode.Hardware.Controls.ButtonControls;
 import org.firstinspires.ftc.teamcode.Hardware.Mecanum;
 import org.firstinspires.ftc.teamcode.Navigation.Odometry;
-import org.firstinspires.ftc.teamcode.Utilities.Point;
+import org.firstinspires.ftc.teamcode.Navigation.Point;
 import org.firstinspires.ftc.teamcode.Utilities.Utils;
 
 import static org.firstinspires.ftc.teamcode.Autonomous.Alpha.State.*;
@@ -62,11 +62,20 @@ public class Alpha extends LinearOpMode {
         print("START: " + robot.odom.getOrientation());
         print("\n");
 
-        robot.linearStrafe(90, 100, 0.1, null);
-        robot.linearStrafe(270, 100, 0.1, null);
+        robot.linearStrafe(new Point(0, 100), 0.1, null);
+        robot.linearStrafe(new Point(0, 0), 0.1, null);
 
-        System.out.println(robot.odom.getOrientation());
+        System.out.println("1\n" + robot.odom.getOrientation());
         print("\n");
 
+        robot.linearStrafe(0, 100, 0.1, null);
+
+        System.out.println("2\n" + robot.odom.getOrientation());
+        print("\n");
+
+        robot.linearStrafe(new Point(0, 0), 0.1, null);
+
+        System.out.println("3\n" + robot.odom.getOrientation());
+        print("\n");
    }
 }

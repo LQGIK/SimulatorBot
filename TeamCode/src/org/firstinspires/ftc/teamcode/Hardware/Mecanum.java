@@ -208,12 +208,17 @@ public class Mecanum implements Robot {
         return x + toRadians(c2) * sin(4 * x - 0.2);
     }
 
-    public void linearStrafe(Point dest, double acceleration, SyncTask task){
+
+    public void linearStrafe(org.firstinspires.ftc.teamcode.Navigation.Point dest, double acceleration, SyncTask task){
 
         // Initialize starter variables
         resetMotors();
+        dest.y *= -1;     // NO IDEA WHY
         dest.x = (dest.x > 0) ? centimeters2Ticks(dest.x) : -centimeters2Ticks(abs(dest.x));
         dest.y = (dest.y > 0) ? centimeters2Ticks(dest.y): -centimeters2Ticks(abs(dest.y));
+
+        dest.x = (dest.x == 7) ? 0 : dest.x;
+        dest.y = (dest.y == 7) ? 0 : dest.y;
 
         // Convert to NORTH=0, to NORTH=90 like  unit circle, and also to radians
         Orientation startO = odom.getOrientation();
@@ -223,14 +228,14 @@ public class Mecanum implements Robot {
         double distC = sqrt(pow(distX, 2) + pow(distY, 2));
 
         // Calculate strafe angle
-        //double targetRadians = eurekaPlus(atan2(distY, distX));
-        double strafeAngle = atan2(distY, distX);
+        double strafeAngle = correctTargetRadians(atan2(distY, distX));
+        //double strafeAngle = atan2(distY, distX);
 
         // Take whichever is the highest number and find what you need to multiply it by to get 1 (which is the max power)
         // The yPower and xPower should maintain the same ratio with each other
         double power;
         double px0 = cos(strafeAngle);                        // Fill out power to a max of 1
-        double py0 = sin(strafeAngle);                   // Fill out power to a max of 1
+        double py0 = sin(strafeAngle);                        // Fill out power to a max of 1
         double pr0 = 0;
 
         print("DISTX: " + distX);
@@ -241,7 +246,7 @@ public class Mecanum implements Robot {
         print("\n");
 
         double curC = 0;
-        while (curC < distC && Utils.isActive()){
+        while (curC < distC && isActive()){
 
             // Execute task synchronously
             if (task != null) task.execute();
@@ -275,6 +280,8 @@ public class Mecanum implements Robot {
         odom.update(curO);
         setAllPower(0);
     }
+
+
     public void linearStrafe(double angle, double cm, double acceleration, SyncTask task) {
 
         resetMotors();
