@@ -124,7 +124,7 @@ public class Mecanum implements Robot {
 
         // Modeling a piece wise of power as a function of distance
         double p1       = sqrt(acceleration * relativePosition);
-        double p2       = 1;
+        double p2       = (abs(distance) > 1000) ? 1 : (0.0002 * distance) + 0.28;
         double p3       = (sqrt(acceleration * abs(10 - relativePosition)));
         double power    = min(min(p1, p2), p3);
         power           = clip(power, 0.1, 1);
@@ -273,6 +273,10 @@ public class Mecanum implements Robot {
         // Calculate x & y errors
         double xError = distX - relO.x;
         double yError = distY - relO.y;
+
+        // Log max powers in x and y direction
+        System.out.println("Max PX: " + powerRamp(abs(distX * 0.5), abs(distX), acceleration));
+        System.out.println("Max PY: " + powerRamp(abs(distY * 0.5), abs(distY), acceleration));
 
         // Correct the distances
         double MOE = 5;
